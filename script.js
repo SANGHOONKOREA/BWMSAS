@@ -1074,10 +1074,10 @@ function updateSidebarList(){
     allRight.textContent=`AS진행(${allProgressCount})`;
     allBtn.appendChild(allLeft);
     allBtn.appendChild(allRight);
-    allBtn.onclick=()=>{
-      document.getElementById('filterOwner').value='';
-      renderTable(); 
-    };
+allBtn.onclick=()=>{
+  document.getElementById('filterOwner').value='';
+  renderTable(true); // 이렇게 true 파라미터를 추가
+};
     listDiv.appendChild(allBtn);
 
     let arr=Object.entries(owMap).map(([k,v])=>({owner:k,...v}));
