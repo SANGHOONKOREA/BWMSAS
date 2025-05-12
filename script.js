@@ -1486,9 +1486,11 @@ document.getElementById('sendResetLinkBtn').addEventListener('click', () => {
     });
 });
 
-// 비밀번호 찾기 모달 닫기
+// 비밀번호 찾기 모달 닫기 함수
 function closeForgotPasswordModal() {
   document.getElementById('forgotPasswordModal').style.display = 'none';
+  document.getElementById('resetEmailStatus').textContent = '';
+  document.getElementById('resetEmailStatus').className = '';
 }
 
 /**
@@ -1559,8 +1561,8 @@ async function checkFirstLogin(userId) {
   }
 }
 
-// 비밀번호 변경 모달 표시
-function showChangePasswordModal() {
+// 비밀번호 변경 모달 표시 함수 수정
+function showChangePasswordModal(isFirstLogin = true) {
   // 입력 필드 초기화
   document.getElementById('currentPassword').value = '';
   document.getElementById('newPassword').value = '';
@@ -1568,38 +1570,73 @@ function showChangePasswordModal() {
   document.getElementById('changePasswordStatus').textContent = '';
   document.getElementById('changePasswordStatus').className = '';
   
+  // 최초 로그인 여부 플래그 설정
+  document.getElementById('changePasswordModal').setAttribute('data-first-login', isFirstLogin ? 'true' : 'false');
+  
   // 모달 표시
   document.getElementById('changePasswordModal').style.display = 'block';
+  
+  // 현재 비밀번호 필드에 포커스
+  setTimeout(() => {
+    document.getElementById('currentPassword').focus();
+  }, 300);
 }
 
-// 비밀번호 변경 버튼 클릭
+// 비밀번호 변경 버튼 클릭 이벤트 핸들러 수정
 document.getElementById('changePasswordBtn').addEventListener('click', async () => {
   const currentPassword = document.getElementById('currentPassword').value;
   const newPassword = document.getElementById('newPassword').value;
   const confirmPassword = document.getElementById('confirmPassword').value;
   const statusElement = document.getElementById('changePasswordStatus');
   
-  // 입력 검증
-  if (!currentPassword || !newPassword || !confirmPassword) {
-    statusElement.textContent = '모든 필드를 입력해주세요.';
+  // 상태 메시지 초기화
+  statusElement.textContent = '';
+  statusElement.className = '';
+  
+  // 입력값 검증
+  if (!currentPassword) {
+    statusElement.textContent = '현재 비밀번호를 입력해주세요.';
     statusElement.className = 'error';
+    document.getElementById('currentPassword').focus();
+    return;
+  }
+  
+  if (!newPassword) {
+    statusElement.textContent = '새 비밀번호를 입력해주세요.';
+    statusElement.className = 'error';
+    document.getElementById('newPassword').focus();
+    return;
+  }
+  
+  if (!confirmPassword) {
+    statusElement.textContent = '새 비밀번호 확인을 입력해주세요.';
+    statusElement.className = 'error';
+    document.getElementById('confirmPassword').focus();
     return;
   }
   
   if (newPassword !== confirmPassword) {
     statusElement.textContent = '새 비밀번호가 일치하지 않습니다.';
     statusElement.className = 'error';
+    document.getElementById('confirmPassword').focus();
     return;
   }
   
   if (newPassword.length < 6) {
     statusElement.textContent = '비밀번호는 6자 이상이어야 합니다.';
     statusElement.className = 'error';
+    document.getElementById('newPassword').focus();
+    return;
+  }
+  
+  if (currentPassword === newPassword) {
+    statusElement.textContent = '현재 비밀번호와 새 비밀번호가 같습니다.';
+    statusElement.className = 'error';
+    document.getElementById('newPassword').focus();
     return;
   }
   
   statusElement.textContent = '비밀번호 변경 중...';
-  statusElement.className = '';
   
   try {
     // 현재 사용자 가져오기
@@ -1625,10 +1662,14 @@ document.getElementById('changePasswordBtn').addEventListener('click', async () 
     statusElement.textContent = '비밀번호가 성공적으로 변경되었습니다.';
     statusElement.className = 'success';
     
-    // 2초 후 모달 닫고 메인 화면 표시
+    // 비밀번호 변경이 성공적으로 이루어졌다면, 2초 후 모달 닫고 메인 화면 표시
     setTimeout(() => {
       document.getElementById('changePasswordModal').style.display = 'none';
-      showMainInterface(user);
+      
+      // 최초 로그인 일 경우에만 메인 화면으로 전환
+      if (document.getElementById('changePasswordModal').getAttribute('data-first-login') === 'true') {
+        showMainInterface(user);
+      }
     }, 2000);
   } catch (error) {
     console.error('비밀번호 변경 오류:', error);
@@ -1636,12 +1677,65 @@ document.getElementById('changePasswordBtn').addEventListener('click', async () 
     
     if (error.code === 'auth/wrong-password') {
       errorMsg = '현재 비밀번호가 올바르지 않습니다.';
+      document.getElementById('currentPassword').focus();
     } else if (error.code === 'auth/weak-password') {
       errorMsg = '새 비밀번호가 너무 약합니다. 더 강력한 비밀번호를 사용해주세요.';
+      document.getElementById('newPassword').focus();
+    } else if (error.code === 'auth/requires-recent-login') {
+      errorMsg = '보안을 위해 재로그인이 필요합니다. 로그아웃 후 다시 로그인해주세요.';
+      // 로그아웃 처리
+      setTimeout(() => {
+        auth.signOut().then(() => {
+          alert('보안을 위해 재로그인이 필요합니다. 다시 로그인해주세요.');
+        });
+      }, 2000);
     }
     
     statusElement.textContent = errorMsg;
     statusElement.className = 'error';
+  }
+});
+
+// 비밀번호 필드 엔터키 이벤트 처리
+document.getElementById('currentPassword').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('newPassword').focus();
+  }
+});
+
+document.getElementById('newPassword').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('confirmPassword').focus();
+  }
+});
+
+document.getElementById('confirmPassword').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('changePasswordBtn').click();
+  }
+});
+
+// 비밀번호 찾기 모달 엔터키 이벤트 처리
+document.getElementById('resetEmail').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('sendResetLinkBtn').click();
+  }
+});
+
+// 이스케이프 키로 모달 닫기
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    if (document.getElementById('forgotPasswordModal').style.display === 'block') {
+      closeForgotPasswordModal();
+    }
+    if (document.getElementById('changePasswordModal').style.display === 'block' &&
+        document.getElementById('changePasswordModal').getAttribute('data-first-login') !== 'true') {
+      closeChangePasswordModal();
+    }
   }
 });
 
