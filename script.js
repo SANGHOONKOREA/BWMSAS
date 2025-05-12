@@ -15,39 +15,6 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
 
-// 로그인 상태 감지
-auth.onAuthStateChanged(user=>{
-  if(user){
-    // 로그인됨
-    document.getElementById('loginModal').style.display='none';
-    document.getElementById('sidebar').classList.remove('hidden');
-    document.getElementById('mainContainer').classList.remove('hidden');
-    testConnection();
-    loadData();   // 데이터는 불러오되, renderTable()은 자동으로 호출하지 않음
-    loadAiConfig(); 
-  } else {
-    // 미로그인
-    document.getElementById('loginModal').style.display='block';
-    document.getElementById('sidebar').classList.add('hidden');
-    document.getElementById('mainContainer').classList.add('hidden');
-  }
-});
-
-document.getElementById('loginConfirmBtn').addEventListener('click', ()=>{
-  const email = document.getElementById('loginUser').value.trim();
-  const pw    = document.getElementById('loginPw').value.trim();
-  if(!email || !pw){
-    document.getElementById('loginError').textContent="이메일/비밀번호를 입력하세요.";
-    return;
-  }
-  auth.signInWithEmailAndPassword(email, pw)
-    .then(()=>{
-      // onAuthStateChanged에서 UI 전환
-    })
-    .catch(err=>{
-      document.getElementById('loginError').textContent = "로그인 실패: "+err.message;
-    });
-});
 
 
 // 사용자 관리 모달 관련
@@ -1450,3 +1417,325 @@ function autoFitColumn(th){
   }
   th.style.width=maxWidth+'px';
 }
+
+// 로그아웃 버튼 이벤트 리스너
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  if(confirm("로그아웃 하시겠습니까?")) {
+    auth.signOut().then(() => {
+      console.log("로그아웃 완료");
+      // onAuthStateChanged에서 UI 전환 처리됨
+    }).catch(err => {
+      console.error("로그아웃 오류:", err);
+      alert("로그아웃 중 오류가 발생했습니다.");
+    });
+  }
+});
+
+
+// 사용자 메타데이터 관리를 위한 경로
+const userMetaPath = 'as-service/user_meta';
+
+/** 
+ * 1. 비밀번호 찾기 기능
+ */
+// 비밀번호 찾기 링크 클릭 이벤트
+document.getElementById('forgotPasswordLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  // 로그인 창의 이메일을 비밀번호 찾기 창에 복사
+  const loginEmail = document.getElementById('loginUser').value.trim();
+  document.getElementById('resetEmail').value = loginEmail;
+  document.getElementById('resetEmailStatus').textContent = '';
+  document.getElementById('resetEmailStatus').className = '';
+  
+  // 비밀번호 찾기 모달 표시
+  document.getElementById('forgotPasswordModal').style.display = 'block';
+});
+
+// 비밀번호 초기화 링크 전송 버튼
+document.getElementById('sendResetLinkBtn').addEventListener('click', () => {
+  const email = document.getElementById('resetEmail').value.trim();
+  if (!email) {
+    document.getElementById('resetEmailStatus').textContent = '이메일을 입력하세요.';
+    document.getElementById('resetEmailStatus').className = 'error';
+    return;
+  }
+  
+  // Firebase 비밀번호 재설정 이메일 전송
+  auth.sendPasswordResetEmail(email)
+    .then(() => {
+      document.getElementById('resetEmailStatus').textContent = '비밀번호 재설정 이메일을 발송했습니다. 이메일을 확인해주세요.';
+      document.getElementById('resetEmailStatus').className = 'success';
+      
+      // 3초 후 모달 닫기
+      setTimeout(() => {
+        closeForgotPasswordModal();
+      }, 3000);
+    })
+    .catch((error) => {
+      console.error('비밀번호 재설정 이메일 전송 오류:', error);
+      let errorMsg = '이메일 전송 중 오류가 발생했습니다.';
+      
+      if (error.code === 'auth/user-not-found') {
+        errorMsg = '해당 이메일로 등록된 사용자가 없습니다.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMsg = '유효하지 않은, 이메일 형식입니다.';
+      }
+      
+      document.getElementById('resetEmailStatus').textContent = errorMsg;
+      document.getElementById('resetEmailStatus').className = 'error';
+    });
+});
+
+// 비밀번호 찾기 모달 닫기
+function closeForgotPasswordModal() {
+  document.getElementById('forgotPasswordModal').style.display = 'none';
+}
+
+/**
+ * 2. 최초 로그인 시 비밀번호 변경 요구
+ */
+// 통합된 로그인 상태 감지 핸들러
+auth.onAuthStateChanged(user => {
+  if (user) {
+    // 로그인됨
+    document.getElementById('loginModal').style.display = 'none';
+    
+    // 현재 사용자 이메일 표시
+    document.getElementById('currentUserName').textContent = user.email || "-";
+    
+    // 최초 로그인 여부 확인
+    checkFirstLogin(user.uid)
+      .then(isFirstLogin => {
+        if (isFirstLogin) {
+          // 최초 로그인이면 비밀번호 변경 모달 표시
+          showChangePasswordModal();
+          // 사이드바와 메인 컨테이너는 아직 표시하지 않음 (비밀번호 변경 후 표시)
+        } else {
+          // 최초 로그인이 아니면 정상적으로 화면 표시
+          document.getElementById('sidebar').classList.remove('hidden');
+          document.getElementById('mainContainer').classList.remove('hidden');
+          testConnection();
+          loadData();
+          loadAiConfig();
+        }
+      })
+      .catch(error => {
+        console.error('최초 로그인 확인 오류:', error);
+        // 오류 발생 시 일단 정상적으로 화면 표시
+        document.getElementById('sidebar').classList.remove('hidden');
+        document.getElementById('mainContainer').classList.remove('hidden');
+        testConnection();
+        loadData();
+        loadAiConfig();
+      });
+  } else {
+    // 미로그인
+    document.getElementById('loginModal').style.display = 'block';
+    document.getElementById('sidebar').classList.add('hidden');
+    document.getElementById('mainContainer').classList.add('hidden');
+    
+    // 로그인 화면 초기화
+    document.getElementById('loginUser').value = '';
+    document.getElementById('loginPw').value = '';
+    document.getElementById('loginError').textContent = '';
+  }
+});
+
+// 최초 로그인 여부 확인 함수
+async function checkFirstLogin(userId) {
+  try {
+    const snapshot = await db.ref(`${userMetaPath}/${userId}`).once('value');
+    const userData = snapshot.val();
+    
+    if (!userData || !userData.lastLogin) {
+      // 최초 로그인으로 판단
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('최초 로그인 확인 중 오류:', error);
+    throw error;
+  }
+}
+
+// 비밀번호 변경 모달 표시
+function showChangePasswordModal() {
+  // 입력 필드 초기화
+  document.getElementById('currentPassword').value = '';
+  document.getElementById('newPassword').value = '';
+  document.getElementById('confirmPassword').value = '';
+  document.getElementById('changePasswordStatus').textContent = '';
+  document.getElementById('changePasswordStatus').className = '';
+  
+  // 모달 표시
+  document.getElementById('changePasswordModal').style.display = 'block';
+}
+
+// 비밀번호 변경 버튼 클릭
+document.getElementById('changePasswordBtn').addEventListener('click', async () => {
+  const currentPassword = document.getElementById('currentPassword').value;
+  const newPassword = document.getElementById('newPassword').value;
+  const confirmPassword = document.getElementById('confirmPassword').value;
+  const statusElement = document.getElementById('changePasswordStatus');
+  
+  // 입력 검증
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    statusElement.textContent = '모든 필드를 입력해주세요.';
+    statusElement.className = 'error';
+    return;
+  }
+  
+  if (newPassword !== confirmPassword) {
+    statusElement.textContent = '새 비밀번호가 일치하지 않습니다.';
+    statusElement.className = 'error';
+    return;
+  }
+  
+  if (newPassword.length < 6) {
+    statusElement.textContent = '비밀번호는 6자 이상이어야 합니다.';
+    statusElement.className = 'error';
+    return;
+  }
+  
+  statusElement.textContent = '비밀번호 변경 중...';
+  statusElement.className = '';
+  
+  try {
+    // 현재 사용자 가져오기
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('로그인된 사용자가 없습니다.');
+    }
+    
+    // 재인증 (현재 비밀번호 확인)
+    const credential = firebase.auth.EmailAuthProvider.credential(
+      user.email,
+      currentPassword
+    );
+    
+    await user.reauthenticateWithCredential(credential);
+    
+    // 비밀번호 변경
+    await user.updatePassword(newPassword);
+    
+    // 비밀번호 변경 성공 후 데이터베이스에 로그인 기록 저장
+    await updateLoginRecord(user.uid);
+    
+    statusElement.textContent = '비밀번호가 성공적으로 변경되었습니다.';
+    statusElement.className = 'success';
+    
+    // 2초 후 모달 닫고 메인 화면 표시
+    setTimeout(() => {
+      document.getElementById('changePasswordModal').style.display = 'none';
+      showMainInterface(user);
+    }, 2000);
+  } catch (error) {
+    console.error('비밀번호 변경 오류:', error);
+    let errorMsg = '비밀번호 변경 중 오류가 발생했습니다.';
+    
+    if (error.code === 'auth/wrong-password') {
+      errorMsg = '현재 비밀번호가 올바르지 않습니다.';
+    } else if (error.code === 'auth/weak-password') {
+      errorMsg = '새 비밀번호가 너무 약합니다. 더 강력한 비밀번호를 사용해주세요.';
+    }
+    
+    statusElement.textContent = errorMsg;
+    statusElement.className = 'error';
+  }
+});
+
+// 로그인 기록 업데이트 함수
+async function updateLoginRecord(userId) {
+  try {
+    const now = new Date().toISOString();
+    await db.ref(`${userMetaPath}/${userId}`).update({
+      lastLogin: now,
+      passwordChanged: true
+    });
+  } catch (error) {
+    console.error('로그인 기록 업데이트 오류:', error);
+    throw error;
+  }
+}
+
+// 로그인 처리 함수를 별도로 분리하여 재사용 가능하게 만듦
+function performLogin() {
+  const email = document.getElementById('loginUser').value.trim();
+  const pw = document.getElementById('loginPw').value.trim();
+  
+  // 입력값 검증
+  if (!email || !pw) {
+    document.getElementById('loginError').textContent = "이메일과 비밀번호를 모두 입력하세요.";
+    return;
+  }
+  
+  // 이메일 형식 체크
+  if (!email.includes('@')) {
+    document.getElementById('loginError').textContent = "올바른 이메일 형식을 입력해주세요.";
+    return;
+  }
+  
+  // 로그인 상태 표시
+  document.getElementById('loginError').textContent = "로그인 중...";
+  
+  auth.signInWithEmailAndPassword(email, pw)
+    .then((userCredential) => {
+      // 로그인 성공 - onAuthStateChanged에서 UI 전환 처리됨
+      document.getElementById('loginError').textContent = "";
+    })
+    .catch(err => {
+      console.error("로그인 오류:", err);
+      
+      // 오류 코드에 따른 세부 메시지 표시
+      let errorMsg = "로그인에 실패했습니다.";
+      
+      switch(err.code) {
+        case 'auth/wrong-password':
+          errorMsg = "비밀번호가 올바르지 않습니다.";
+          break;
+        case 'auth/user-not-found':
+          errorMsg = "등록되지 않은 이메일입니다.";
+          break;
+        case 'auth/invalid-email':
+          errorMsg = "유효하지 않은 이메일 형식입니다.";
+          break;
+        case 'auth/user-disabled':
+          errorMsg = "비활성화된 계정입니다. 관리자에게 문의하세요.";
+          break;
+        case 'auth/too-many-requests':
+          errorMsg = "너무 많은 시도가 있었습니다. 잠시 후 다시 시도해주세요.";
+          break;
+        default:
+          errorMsg = "로그인 실패: " + err.message;
+      }
+      
+      document.getElementById('loginError').textContent = errorMsg;
+    });
+}
+
+// 로그인 버튼 클릭 이벤트 리스너 업데이트
+document.getElementById('loginConfirmBtn').addEventListener('click', performLogin);
+
+// 엔터키 입력 이벤트 리스너 추가
+document.getElementById('loginPw').addEventListener('keypress', function(e) {
+  // 엔터키(keyCode 13) 입력 시
+  if (e.key === 'Enter' || e.keyCode === 13) {
+    e.preventDefault(); // 기본 동작 방지
+    performLogin();
+  }
+});
+
+// 이메일 입력 필드에서도 엔터키 지원
+document.getElementById('loginUser').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter' || e.keyCode === 13) {
+    e.preventDefault();
+    // 비밀번호 필드가 비어있으면 비밀번호 필드로 포커스 이동
+    if (!document.getElementById('loginPw').value.trim()) {
+      document.getElementById('loginPw').focus();
+    } else {
+      // 비밀번호 필드에 값이 있으면 로그인 시도
+      performLogin();
+    }
+  }
+});
