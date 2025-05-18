@@ -150,9 +150,9 @@ function registerEventListeners() {
   setupFilterDebounce();
 }
 
-// 필터 변경 이벤트에 디바운스 적용
+  // 필터 변경 이벤트에 디바운스 적용
 function setupFilterDebounce() {
-  const filters = ['filterIMO', 'filterHull', 'filterName', 'filterOwner', 'filterMajor', 'filterGroup', 'filterAsType', 'filterManager', 'filterActive'];
+  const filters = ['filterIMO', 'filterHull', 'filterName', 'filterOwner', 'filterMajor', 'filterRepMail', 'filterGroup', 'filterAsType', 'filterManager', 'filterActive'];
   
   filters.forEach(id => {
     const element = document.getElementById(id);
@@ -864,6 +864,7 @@ function renderTable(overrideAll = false) {
     const fName = document.getElementById('filterName').value.trim().toLowerCase();
     const fOwner = document.getElementById('filterOwner').value.trim().toLowerCase();
     const fMajor = document.getElementById('filterMajor').value.trim().toLowerCase();
+    const fRepMail = document.getElementById('filterRepMail').value.trim().toLowerCase();
     const fGroup = document.getElementById('filterGroup').value;
     const fAsType = document.getElementById('filterAsType').value;
     const fMgr = document.getElementById('filterManager').value.trim().toLowerCase();
@@ -871,7 +872,7 @@ function renderTable(overrideAll = false) {
 
     // 현재 필터 상태 저장
     const currentFilterState = {
-      fIMO, fHull, fName, fOwner, fMajor, fGroup, fAsType, fMgr, fActive
+      fIMO, fHull, fName, fOwner, fMajor, fRepMail, fGroup, fAsType, fMgr, fActive
     };
     
     // 필터 상태가 동일하고 강제 렌더링이 아니면 다시 그리지 않음
@@ -883,7 +884,7 @@ function renderTable(overrideAll = false) {
     // 필터 상태 갱신
     lastFilterState = currentFilterState;
 
-    const allEmpty = !fIMO && !fHull && !fName && !fOwner && !fMajor && !fGroup && !fAsType && !fMgr && !fActive;
+    const allEmpty = !fIMO && !fHull && !fName && !fOwner && !fMajor && !fRepMail && !fGroup && !fAsType && !fMgr && !fActive;
     if (allEmpty && !overrideAll) {
       document.getElementById('asBody').innerHTML = '';
       updateSidebarList(); 
@@ -919,6 +920,7 @@ function renderTable(overrideAll = false) {
           const nameVal = String(row.shipName || '').toLowerCase();
           const ownVal = String(row.shipowner || '').toLowerCase();
           const majVal = String(row.major || '').toLowerCase();
+          const repMailVal = String(row.repMail || '').toLowerCase();
           const mgrVal = String(row.manager || '').toLowerCase();
           const actVal = String(row.동작여부 || '');
 
@@ -927,6 +929,7 @@ function renderTable(overrideAll = false) {
           if (fName && !nameVal.includes(fName)) return false;
           if (fOwner && !ownVal.includes(fOwner)) return false;
           if (fMajor && !majVal.includes(fMajor)) return false;
+          if (fRepMail && !repMailVal.includes(fRepMail)) return false;
           if (fGroup && row.group !== fGroup) return false;
           if (fAsType && row.asType !== fAsType) return false;
           if (fMgr && !mgrVal.includes(fMgr)) return false;
@@ -943,6 +946,7 @@ function renderTable(overrideAll = false) {
           const nameVal = String(row.shipName || '').toLowerCase();
           const ownVal = String(row.shipowner || '').toLowerCase();
           const majVal = String(row.major || '').toLowerCase();
+          const repMailVal = String(row.repMail || '').toLowerCase();
           const mgrVal = String(row.manager || '').toLowerCase();
           const actVal = String(row.동작여부 || '');
 
@@ -951,6 +955,7 @@ function renderTable(overrideAll = false) {
           if (fName && !nameVal.includes(fName)) return false;
           if (fOwner && !ownVal.includes(fOwner)) return false;
           if (fMajor && !majVal.includes(fMajor)) return false;
+          if (fRepMail && !repMailVal.includes(fRepMail)) return false;
           if (fGroup && row.group !== fGroup) return false;
           if (fAsType && row.asType !== fAsType) return false;
           if (fMgr && !mgrVal.includes(fMgr)) return false;
@@ -1438,9 +1443,21 @@ function updateSidebarList() {
       renderTable(true);
     });
     
-    // 선주사별 버튼 생성
+    // 선주사별 버튼 생성 - 알파벳 순서로 정렬하되 한글은 영문자 뒤에 오도록 함
     const sortedOwners = Array.from(owMap.entries())
-      .sort(([, a], [, b]) => b.totalCount - a.totalCount);
+      .sort(([a], [b]) => {
+        // 한글 감지 정규식
+        const isHangulA = /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(a.charAt(0));
+        const isHangulB = /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(b.charAt(0));
+        
+        // 둘 다 한글이거나 둘 다 영문이면 일반 비교
+        if (isHangulA === isHangulB) {
+          return a.localeCompare(b);
+        }
+        
+        // 한글이 아닌 것(영문 등)이 먼저 오도록
+        return isHangulA ? 1 : -1;
+      });
     
     sortedOwners.forEach(([owner, {totalCount, progressCount}]) => {
       appendSidebarButton(listDiv, owner, totalCount, progressCount, () => {
@@ -1477,6 +1494,7 @@ function clearFilters() {
   document.getElementById('filterName').value = '';
   document.getElementById('filterOwner').value = '';
   document.getElementById('filterMajor').value = '';
+  document.getElementById('filterRepMail').value = '';
   document.getElementById('filterGroup').value = '';
   document.getElementById('filterAsType').value = '';
   document.getElementById('filterManager').value = '';
