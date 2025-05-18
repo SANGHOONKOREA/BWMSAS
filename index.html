@@ -140,67 +140,72 @@
       </div>
     </div>
 
-    <!-- 필터 영역 -->
-    <div class="filters">
-      <div class="filter-group">
-        <label>IMO NO.</label>
-        <input type="text" id="filterIMO" oninput="renderTable()">
-      </div>
-      <div class="filter-group">
-        <label>HULL NO.</label>
-        <input type="text" id="filterHull" oninput="renderTable()">
-      </div>
-      <div class="filter-group">
-        <label>SHIPNAME</label>
-        <input type="text" id="filterName" oninput="renderTable()">
-      </div>
-      <div class="filter-group">
-        <label>SHIPOWNER</label>
-        <input type="text" id="filterOwner" oninput="renderTable()">
-      </div>
-      <div class="filter-group">
-        <label>주요선사</label>
-        <input type="text" id="filterMajor" oninput="renderTable()">
-      </div>
-      <div class="filter-group">
-        <label>그룹</label>
-        <select id="filterGroup" onchange="renderTable()">
-          <option value="">전체</option>
-          <option value="1">1</option><option value="2">2</option>
-          <option value="3">3</option><option value="4">4</option>
-          <option value="5">5</option><option value="6">6</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>AS 구분</label>
-        <select id="filterAsType" onchange="renderTable()">
-          <option value="">전체</option>
-          <option value="무상">무상</option>
-          <option value="유상">유상</option>
-          <option value="위탁">위탁</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>현 담당</label>
-        <input type="text" id="filterManager" oninput="renderTable()">
-      </div>
-      <div class="filter-group">
-        <label>동작여부</label>
-        <select id="filterActive" onchange="renderTable()">
-          <option value="">전체</option>
-          <option value="정상A">정상A</option>
-          <option value="정상B">정상B</option>
-          <option value="유상정상">유상정상</option>
-          <option value="부분동작">부분동작</option>
-          <option value="동작불가">동작불가</option>
-        </select>
-      </div>
-      <!-- (신규) "전체조회" 버튼 -->
-      <div class="filter-group">
-        <label style="visibility:hidden;">&nbsp;</label>
-        <button id="loadBtn" style="padding:6px 10px;">전체조회</button>
-      </div>
-    </div>
+<!-- 필터 영역 - 호선 대표메일 필터 추가 -->
+<div class="filters">
+  <div class="filter-group">
+    <label>IMO NO.</label>
+    <input type="text" id="filterIMO" oninput="renderTable()">
+  </div>
+  <div class="filter-group">
+    <label>HULL NO.</label>
+    <input type="text" id="filterHull" oninput="renderTable()">
+  </div>
+  <div class="filter-group">
+    <label>SHIPNAME</label>
+    <input type="text" id="filterName" oninput="renderTable()">
+  </div>
+  <div class="filter-group">
+    <label>SHIPOWNER</label>
+    <input type="text" id="filterOwner" oninput="renderTable()">
+  </div>
+  <div class="filter-group">
+    <label>주요선사</label>
+    <input type="text" id="filterMajor" oninput="renderTable()">
+  </div>
+  <!-- 호선 대표메일 필터 추가 -->
+  <div class="filter-group">
+    <label>호선 대표메일</label>
+    <input type="text" id="filterRepMail" oninput="renderTable()">
+  </div>
+  <div class="filter-group">
+    <label>그룹</label>
+    <select id="filterGroup" onchange="renderTable()">
+      <option value="">전체</option>
+      <option value="1">1</option><option value="2">2</option>
+      <option value="3">3</option><option value="4">4</option>
+      <option value="5">5</option><option value="6">6</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>AS 구분</label>
+    <select id="filterAsType" onchange="renderTable()">
+      <option value="">전체</option>
+      <option value="무상">무상</option>
+      <option value="유상">유상</option>
+      <option value="위탁">위탁</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>현 담당</label>
+    <input type="text" id="filterManager" oninput="renderTable()">
+  </div>
+  <div class="filter-group">
+    <label>동작여부</label>
+    <select id="filterActive" onchange="renderTable()">
+      <option value="">전체</option>
+      <option value="정상A">정상A</option>
+      <option value="정상B">정상B</option>
+      <option value="유상정상">유상정상</option>
+      <option value="부분동작">부분동작</option>
+      <option value="동작불가">동작불가</option>
+    </select>
+  </div>
+  <!-- "전체조회" 버튼 -->
+  <div class="filter-group">
+    <label style="visibility:hidden;">&nbsp;</label>
+    <button id="loadBtn" style="padding:6px 10px;">전체조회</button>
+  </div>
+</div>
 
     <div class="table-container" id="tableContainer">
       <table id="asTable">
