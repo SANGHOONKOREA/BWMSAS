@@ -1,4 +1,26 @@
-/** ===============================
+// 정렬 표시기 스타일 추가
+function addSortIndicatorStyles() {
+  const styleElem = document.createElement('style');
+  styleElem.textContent = `
+    th {
+      cursor: pointer;
+      position: relative;
+      user-select: none;
+    }
+    th:hover {
+      background-color: #264c70;
+    }
+    .sort-indicator {
+      display: inline-block;
+      margin-left: 5px;
+      font-size: 0.8em;
+    }
+    th[data-field] {
+      padding-right: 20px; /* 정렬 아이콘 공간 확보 */
+    }
+  `;
+  document.head.appendChild(styleElem);
+}/** ===============================
  *  Firebase 초기화
  * ===============================**/
 const firebaseConfig = {
@@ -24,7 +46,7 @@ let adminAuthorized = false;  // 관리자 비번 확인용
 let userData = [];
 let isTableRendering = false; // 테이블 렌더링 중복 방지
 let tableRenderTimeout = null;
-let pendingRowUpdates = new Map(); // 행 변경사항 일괄 처리용
+let dataChanged = false;      // 데이터 변경 여부 추적
 let lastFilterState = {}; // 마지막 필터 상태
 let dataLoaded = false; // 데이터 로드 여부
 
@@ -54,6 +76,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 테이블 가로 스크롤 대응 스타일 추가
   addTableScrollStyles();
+  
+  // 정렬 화살표 스타일 추가
+  addSortIndicatorStyles();
 });
 
 // 모든 이벤트 리스너 등록 함수 - 성능 개선을 위해 일괄 처리
@@ -762,6 +787,12 @@ function saveAllData() {
       // 버튼 상태 복원
       saveBtn.textContent = originalText;
       saveBtn.disabled = false;
+      
+      // 저장 성공 표시 (옵션)
+      saveBtn.classList.add('save-success');
+      setTimeout(() => {
+        saveBtn.classList.remove('save-success');
+      }, 1000);
     })
     .catch(err => {
       alert("저장 중 오류 발생: " + err.message);
@@ -822,16 +853,50 @@ function toggleSelectAll(e) {
 
 // 테이블 클릭 이벤트 핸들러
 function handleTableClick(e) {
-  // 헤더 클릭 시 정렬
-  if (e.target.tagName === 'TH' && e.target.dataset.field) {
-    const f = e.target.dataset.field;
-    if (sortField === f) {
+  // 헤더 클릭 시 정렬 (col-resizer 클릭은 제외)
+  if (e.target.tagName === 'TH' && e.target.dataset.field && !e.target.querySelector('.col-resizer').contains(e.target)) {
+    const field = e.target.dataset.field;
+    
+    // 정렬 디버깅 로그
+    console.log(`헤더 클릭: ${field}`);
+    
+    // 기존 정렬 표시기 제거
+    document.querySelectorAll('th .sort-indicator').forEach(indicator => {
+      indicator.remove();
+    });
+    
+    // 정렬 방향 결정
+    if (sortField === field) {
       sortAsc = !sortAsc; // 같은 필드 클릭 시 정렬 방향 반전
     } else {
-      sortField = f;
+      sortField = field;
       sortAsc = true;
     }
-    renderTable();
+    
+    console.log(`정렬 설정: field=${sortField}, asc=${sortAsc}`);
+    
+    // 정렬 표시기 추가
+    const sortIndicator = document.createElement('span');
+    sortIndicator.className = 'sort-indicator';
+    sortIndicator.innerHTML = sortAsc ? ' &#9650;' : ' &#9660;'; // 위/아래 화살표
+    e.target.appendChild(sortIndicator);
+    
+    // 전체 데이터 정렬 - 메모리 내에서 직접 정렬
+    asData.sort((a, b) => {
+      // 정렬 대상 필드의 값을 추출 (문자열로 변환하여 비교)
+      const aVal = String(a[field] || '').toLowerCase();
+      const bVal = String(b[field] || '').toLowerCase();
+      
+      // 정렬 방향에 따라 비교 결과 반환
+      if (aVal < bVal) return sortAsc ? -1 : 1;
+      if (aVal > bVal) return sortAsc ? 1 : -1;
+      return 0;
+    });
+    
+    console.log(`정렬 완료, 첫 번째 값: ${asData[0][field]}, 마지막 값: ${asData[asData.length-1][field]}`);
+    
+    // 전체 테이블 다시 그리기 (정렬된 데이터로)
+    renderTable(true);
   }
 }
 
@@ -936,7 +1001,16 @@ function renderTable(overrideAll = false) {
           if (fActive && actVal !== fActive) return false;
         }
         return true;
-      }).sort(compareFunc);
+      });
+
+      // 정렬 적용 - 명시적으로 .sort() 호출
+      filteredData.sort((a, b) => {
+        const aa = String(a[sortField] || '');
+        const bb = String(b[sortField] || '');
+        if (aa < bb) return sortAsc ? -1 : 1;
+        if (aa > bb) return sortAsc ? 1 : -1;
+        return 0;
+      });
     } else {
       // 정렬이 필요 없는 경우, 필터링만 수행
       filteredData = asData.filter(row => {
@@ -967,6 +1041,13 @@ function renderTable(overrideAll = false) {
     
     // 상태 집계
     const counts = {정상A: 0, 정상B: 0, 유상정상: 0, 부분동작: 0, 동작불가: 0};
+    
+    // 정렬 디버깅 로그 - 문제 확인용
+    console.log(`정렬 상태: field=${sortField}, asc=${sortAsc}, 데이터 수=${filteredData.length}`);
+    if (filteredData.length > 0 && sortField) {
+      console.log(`첫 번째 항목 ${sortField} 값:`, filteredData[0][sortField]);
+      console.log(`마지막 항목 ${sortField} 값:`, filteredData[filteredData.length-1][sortField]);
+    }
     filteredData.forEach(row => {
       if (counts.hasOwnProperty(row.동작여부)) counts[row.동작여부]++;
     });
@@ -991,6 +1072,23 @@ function renderTable(overrideAll = false) {
     document.getElementById('count유상정상').textContent = counts.유상정상;
     document.getElementById('count부분동작').textContent = counts.부분동작;
     document.getElementById('count동작불가').textContent = counts.동작불가;
+
+    // 정렬 표시기 업데이트 - 필요한 경우
+    if (sortField) {
+      // 기존 정렬 표시기 제거
+      document.querySelectorAll('th .sort-indicator').forEach(indicator => {
+        indicator.remove();
+      });
+      
+      // 현재 정렬 필드에 정렬 표시기 추가
+      const sortedTh = document.querySelector(`th[data-field="${sortField}"]`);
+      if (sortedTh) {
+        const sortIndicator = document.createElement('span');
+        sortIndicator.className = 'sort-indicator';
+        sortIndicator.innerHTML = sortAsc ? ' &#9650;' : ' &#9660;'; // 위/아래 화살표
+        sortedTh.appendChild(sortIndicator);
+      }
+    }
 
     // 사이드바 목록 갱신
     updateSidebarList();
@@ -1360,7 +1458,7 @@ function switchSideMode(mode) {
 
   // 현재 모드에 맞게 버튼 활성화 및 제목 변경
   if (mode === 'manager') {
-document.getElementById('btnManager').classList.add('active');
+    document.getElementById('btnManager').classList.add('active');
     document.getElementById('listTitle').textContent = '담당자 목록';
   } else {
     document.getElementById('btnOwner').classList.add('active');
