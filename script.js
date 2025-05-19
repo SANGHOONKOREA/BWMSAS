@@ -1,26 +1,4 @@
-// 정렬 표시기 스타일 추가
-function addSortIndicatorStyles() {
-  const styleElem = document.createElement('style');
-  styleElem.textContent = `
-    th {
-      cursor: pointer;
-      position: relative;
-      user-select: none;
-    }
-    th:hover {
-      background-color: #264c70;
-    }
-    .sort-indicator {
-      display: inline-block;
-      margin-left: 5px;
-      font-size: 0.8em;
-    }
-    th[data-field] {
-      padding-right: 20px; /* 정렬 아이콘 공간 확보 */
-    }
-  `;
-  document.head.appendChild(styleElem);
-}/** ===============================
+/** ===============================
  *  Firebase 초기화
  * ===============================**/
 const firebaseConfig = {
@@ -2513,7 +2491,7 @@ async function callGeminiForSummary(contentText, apiKey, modelName) {
       updateAiProgressText("\n[에러] " + JSON.stringify(data, null, 2));
       return "";
     }
-  } catch (err) {
+  } catch (err) {A
     console.error("Gemini API 요청 오류:", err);
     updateAiProgressText("\n[에러 발생]\n" + err.message);
     return "";
@@ -2537,4 +2515,27 @@ function isEqual(obj1, obj2) {
   }
   
   return true;
+}
+// 정렬 표시기 스타일 추가
+function addSortIndicatorStyles() {
+  const styleElem = document.createElement('style');
+  styleElem.textContent = `
+    th {
+      cursor: pointer;
+      position: relative;
+      user-select: none;
+    }
+    th:hover {
+      background-color: #264c70;
+    }
+    .sort-indicator {
+      display: inline-block;
+      margin-left: 5px;
+      font-size: 0.8em;
+    }
+    th[data-field] {
+      padding-right: 20px; /* 정렬 아이콘 공간 확보 */
+    }
+  `;
+  document.head.appendChild(styleElem);
 }
