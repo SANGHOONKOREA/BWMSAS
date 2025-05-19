@@ -720,3 +720,8 @@ th[data-field="지연 사유"], td[data-field="지연 사유"] { min-width: 300p
 #forgotPasswordModal .close:hover {
   color: #333;
 }
+
+.save-success {
+  background-color: #28a745 !important;
+  transition: background-color 0.3s ease;
+}
