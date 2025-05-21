@@ -1,4 +1,26 @@
-/** ===============================
+// 정렬 표시기 스타일 추가
+function addSortIndicatorStyles() {
+  const styleElem = document.createElement('style');
+  styleElem.textContent = `
+    th {
+      cursor: pointer;
+      position: relative;
+      user-select: none;
+    }
+    th:hover {
+      background-color: #264c70;
+    }
+    .sort-indicator {
+      display: inline-block;
+      margin-left: 5px;
+      font-size: 0.8em;
+    }
+    th[data-field] {
+      padding-right: 20px; /* 정렬 아이콘 공간 확보 */
+    }
+  `;
+  document.head.appendChild(styleElem);
+}/** ===============================
  *  Firebase 초기화
  * ===============================**/
 const firebaseConfig = {
@@ -27,6 +49,7 @@ let tableRenderTimeout = null;
 let dataChanged = false;      // 데이터 변경 여부 추적
 let lastFilterState = {}; // 마지막 필터 상태
 let dataLoaded = false; // 데이터 로드 여부
+let pendingRowUpdates = new Map(); // 업데이트 대기 중인 행
 
 // 경로 정의
 const asPath = 'as-service/data';
@@ -34,6 +57,7 @@ const userPath = 'as-service/users';
 const histPath = 'as-service/history';
 const aiHistoryPath = 'as-service/ai_history';
 const aiConfigPath = "as-service/admin/aiConfig";
+const apiConfigPath = "as-service/admin/apiConfig";
 const userMetaPath = 'as-service/user_meta';
 
 // AI 설정 글로벌 변수
@@ -43,6 +67,12 @@ let g_aiConfig = {
   promptRow: "",
   promptHistory: "",
   promptOwner: ""
+};
+
+// API 설정 글로벌 변수
+let g_apiConfig = {
+  apiKey: "",
+  baseUrl: "https://api.vesselfinder.com/masterdata"
 };
 
 /** ==================================
@@ -74,6 +104,11 @@ function registerEventListeners() {
   document.getElementById('aiConfigBtn').addEventListener('click', openAiConfigModal);
   document.getElementById('saveAiConfigBtn').addEventListener('click', saveAiConfig);
   document.getElementById('ownerAISummaryBtn').addEventListener('click', openOwnerAIModal);
+  
+  // API 설정 관련
+  document.getElementById('apiConfigBtn').addEventListener('click', openApiConfigModal);
+  document.getElementById('saveApiConfigBtn').addEventListener('click', saveApiConfig);
+  document.getElementById('apiRefreshAllBtn').addEventListener('click', refreshAllVessels);
   
   // 테이블 관련
   document.getElementById('asTable').addEventListener('click', handleTableClick);
@@ -142,6 +177,12 @@ function registerEventListeners() {
       }
       if (document.getElementById('aiProgressModal').style.display === 'block') {
         document.getElementById('aiProgressModal').style.display = 'none';
+      }
+      if (document.getElementById('apiProgressModal').style.display === 'block') {
+        document.getElementById('apiProgressModal').style.display = 'none';
+      }
+      if (document.getElementById('apiConfigModal').style.display === 'block') {
+        closeApiConfigModal();
       }
     }
   });
@@ -237,6 +278,7 @@ function showMainInterface() {
     testConnection();
     loadData();
     loadAiConfig();
+    loadApiConfig();
     dataLoaded = true;
   }
 }
@@ -679,6 +721,173 @@ async function loadAiConfig() {
 }
 
 /** ==================================
+ *  API 설정 관리
+ * ===================================*/
+// API 설정 모달 열기
+function openApiConfigModal() {
+  if (!adminAuthorized) {
+    const pw = prompt("관리자 비밀번호:");
+    if (pw !== 'snsys1234') {
+      alert("관리자 비밀번호가 다릅니다.");
+      return;
+    }
+    adminAuthorized = true;
+  }
+  
+  // 모달에 현재값 세팅
+  document.getElementById('vesselfinder_apikey').value = g_apiConfig.apiKey || "";
+  document.getElementById('vesselfinder_baseurl').value = g_apiConfig.baseUrl || "https://api.vesselfinder.com/masterdata";
+
+  // API 크레딧 상태 확인
+  checkApiCreditStatus();
+  
+  document.getElementById('apiConfigModal').style.display = 'block';
+}
+
+// API 설정 모달 닫기
+function closeApiConfigModal() {
+  document.getElementById('apiConfigModal').style.display = 'none';
+}
+
+// API 설정 저장
+async function saveApiConfig() {
+  const newConfig = {
+    apiKey: document.getElementById('vesselfinder_apikey').value.trim(),
+    baseUrl: document.getElementById('vesselfinder_baseurl').value.trim()
+  };
+  await db.ref(apiConfigPath).set(newConfig);
+  alert("API 설정이 저장되었습니다.");
+  g_apiConfig = newConfig;
+  document.getElementById('apiConfigModal').style.display = 'none';
+}
+
+// API 설정 로드
+async function loadApiConfig() {
+  const snap = await db.ref(apiConfigPath).once('value');
+  if (snap.exists()) {
+    g_apiConfig = snap.val();
+  }
+}
+
+// API 크레딧 상태 확인 함수 수정
+async function checkApiCreditStatus() {
+  const statusElem = document.getElementById('apiCreditStatus');
+  statusElem.textContent = "API 상태 확인 중...";
+  
+  const apiKey = document.getElementById('vesselfinder_apikey').value.trim() || g_apiConfig.apiKey;
+  
+  if (!apiKey) {
+    statusElem.textContent = "API Key가 설정되지 않았습니다.";
+    return;
+  }
+  
+  try {
+    // CORS 프록시 사용
+    const corsProxy = "https://api.allorigins.win/raw?url=";
+    // STATUS 메서드를 직접 호출
+    const targetUrl = `https://api.vesselfinder.com/status?userkey=${apiKey}`;
+    const statusUrl = `${corsProxy}${encodeURIComponent(targetUrl)}`;
+    
+    const response = await fetch(statusUrl);
+    const responseText = await response.text();
+    
+    // 응답이 JSON인지 확인
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      statusElem.innerHTML = `<p>JSON 파싱 오류: ${e.message}</p><p>원본 응답: ${responseText}</p>`;
+      return;
+    }
+    
+    // 오류 확인
+    if (data.error) {
+      statusElem.textContent = `오류: ${data.error}`;
+      return;
+    }
+    
+    // 정상 응답 처리 (문서에 따른 형식)
+    if (data.CREDITS !== undefined) {
+      // 문서에 있는 형식으로 응답이 온 경우
+      const credits = data.CREDITS;
+      const expirationDate = data.EXPIRATION_DATE || 'N/A';
+      
+      statusElem.innerHTML = `
+        <div style="margin-top:10px;">
+          <p><strong>남은 크레딧:</strong> ${credits}</p>
+          <p><strong>만료일:</strong> ${expirationDate}</p>
+        </div>
+      `;
+    } 
+    // 배열 형태로 응답이 올 경우
+    else if (Array.isArray(data) && data.length > 0) {
+      const firstItem = data[0];
+      
+      if (firstItem.CREDITS !== undefined) {
+        const credits = firstItem.CREDITS;
+        const expirationDate = firstItem.EXPIRATION_DATE || 'N/A';
+        
+        statusElem.innerHTML = `
+          <div style="margin-top:10px;">
+            <p><strong>남은 크레딧:</strong> ${credits}</p>
+            <p><strong>만료일:</strong> ${expirationDate}</p>
+          </div>
+        `;
+      } else {
+        statusElem.innerHTML = `<p>예상치 못한 응답 형식입니다: ${JSON.stringify(data)}</p>`;
+      }
+    } 
+    // STATUS 객체 내에 정보가 있는 경우
+    else if (data.STATUS) {
+      const status = data.STATUS;
+      const credits = status.CREDITS || status.credits || 'N/A';
+      const expirationDate = status.EXPIRATION_DATE || status.expiration_date || 'N/A';
+      
+      statusElem.innerHTML = `
+        <div style="margin-top:10px;">
+          <p><strong>남은 크레딧:</strong> ${credits}</p>
+          <p><strong>만료일:</strong> ${expirationDate}</p>
+        </div>
+      `;
+    }
+    // 다른 형식의 응답
+    else {
+      statusElem.innerHTML = `
+        <p>응답을 해석할 수 없습니다. 원본 응답:</p>
+        <pre style="max-height:150px;overflow:auto;background:#f5f5f5;padding:5px;font-size:0.8em;">${JSON.stringify(data, null, 2)}</pre>
+      `;
+    }
+    
+  } catch (error) {
+    console.error("API 상태 확인 오류:", error);
+    statusElem.textContent = `API 상태 확인 중 오류가 발생했습니다: ${error.message}`;
+  }
+}
+
+/** ==================================
+ *  API 진행 상황 모달
+ * ===================================*/
+function showApiProgressModal() {
+  document.getElementById('apiProgressText').textContent = "데이터 요청 중...";
+  document.getElementById('apiProgressModal').style.display = 'block';
+}
+
+function updateApiProgressText(text) {
+  const div = document.getElementById('apiProgressText');
+  div.textContent += "\n" + text;
+  // 자동 스크롤
+  div.scrollTop = div.scrollHeight;
+}
+
+function clearApiProgressText() {
+  document.getElementById('apiProgressText').textContent = "";
+}
+
+function closeApiProgressModal() {
+  document.getElementById('apiProgressModal').style.display = 'none';
+}
+
+/** ==================================
  *  AI 실시간 진행 모달
  * ===================================*/
 function showAiProgressModal() {
@@ -734,6 +943,11 @@ function loadData() {
       if (!("AS접수일자" in r)) r["AS접수일자"] = "";
       if (!("정상지연" in r)) r["정상지연"] = "";
       if (!("지연 사유" in r)) r["지연 사유"] = "";
+      
+      // API 필드 초기화 (추가된 부분)
+      if (!("api_name" in r)) r["api_name"] = "";
+      if (!("api_owner" in r)) r["api_owner"] = "";
+      if (!("api_manager" in r)) r["api_manager"] = "";
       
       asData.push(r);
     });
@@ -795,7 +1009,11 @@ function addNewRow() {
     "AS접수일자": '',
     "기술적종료일": '',
     "정상지연": '',
-    "지연 사유": ''
+    "지연 사유": '',
+    // API 필드 추가
+    "api_name": '',
+    "api_owner": '',
+    "api_manager": ''
   };
   
   // 행을 배열 앞에 추가하여 최근 추가 항목이 맨 위에 표시되도록 함
@@ -1089,10 +1307,31 @@ function createTableRow(row, counts) {
   td.appendChild(chk);
   tr.appendChild(td);
 
-  // 나머지 셀 생성
+  // 기본 셀 생성
   tr.appendChild(makeCell(row.공번, '공번'));
   tr.appendChild(makeCell(row.공사, '공사'));
   tr.appendChild(makeCell(row.imo, 'imo'));
+  
+  // API 관련 셀 추가
+  tr.appendChild(makeCell(row.api_name, 'api_name'));
+  tr.appendChild(makeCell(row.api_owner, 'api_owner'));
+  tr.appendChild(makeCell(row.api_manager, 'api_manager'));
+  
+  // API 반영 버튼
+  const apiTd = document.createElement('td');
+  const apiBtn = document.createElement('button');
+  apiBtn.textContent = "반영";
+  apiBtn.style.background = "#28a745";
+  apiBtn.style.color = "#fff";
+  apiBtn.style.cursor = "pointer";
+  apiBtn.style.border = "none";
+  apiBtn.style.borderRadius = "4px";
+  apiBtn.style.padding = "4px 8px";
+  apiBtn.addEventListener('click', () => fetchAndUpdateVesselData(row.uid));
+  apiTd.appendChild(apiBtn);
+  tr.appendChild(apiTd);
+
+  // 나머지 셀 생성
   tr.appendChild(makeCell(row.hull, 'hull'));
   tr.appendChild(makeCell(row.shipName, 'shipName'));
   tr.appendChild(makeCell(row.repMail, 'repMail'));
@@ -1250,6 +1489,16 @@ function makeCell(val, fld) {
     inp.dataset.uid = '';  // rowId는 행 생성 시 할당
     inp.dataset.field = fld;
     c.addEventListener('click', () => openContentModal(val || ''));
+    c.appendChild(inp);
+  } else if (['api_name', 'api_owner', 'api_manager'].includes(fld)) {
+    // API 데이터 필드 (읽기 전용)
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.value = val || '';
+    inp.style.width = '95%';
+    inp.readOnly = true;
+    inp.dataset.uid = '';  // rowId는 행 생성 시 할당
+    inp.dataset.field = fld;
     c.appendChild(inp);
   } else {
     // 일반 텍스트 필드
@@ -1414,6 +1663,317 @@ function processRowUpdates() {
     });
 }
 
+// 단일 선박 데이터 반영 함수 수정
+async function fetchAndUpdateVesselData(uid) {
+  const row = asData.find(x => x.uid === uid);
+  if (!row) {
+    alert("해당 행을 찾을 수 없습니다.");
+    return;
+  }
+  
+  const imoNumber = row.imo.trim();
+  if (!imoNumber) {
+    alert("IMO 번호가 없습니다. IMO 번호를 먼저 입력해주세요.");
+    return;
+  }
+  
+  if (!g_apiConfig.apiKey) {
+    alert("API 키가 설정되지 않았습니다. API 설정에서 키를 설정해주세요.");
+    return;
+  }
+  
+  showApiProgressModal();
+  clearApiProgressText();
+  updateApiProgressText(`IMO ${imoNumber} 데이터 요청 중...`);
+  
+  try {
+    // CORS 프록시 사용
+    const corsProxy = "https://api.allorigins.win/raw?url=";
+    const targetUrl = `${g_apiConfig.baseUrl}?userkey=${g_apiConfig.apiKey}&imo=${imoNumber}`;
+    const apiUrl = `${corsProxy}${encodeURIComponent(targetUrl)}`;
+    
+    updateApiProgressText(`\n요청 URL: ${targetUrl}`);
+    
+    const response = await fetch(apiUrl);
+    const responseText = await response.text();
+    
+    // 응답이 JSON인지 확인
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      updateApiProgressText(`\nJSON 파싱 오류: ${e.message}`);
+      setTimeout(() => closeApiProgressModal(), 5000);
+      return;
+    }
+    
+    // 응답이 배열인지 확인
+    if (Array.isArray(data)) {
+      if (data.length === 0) {
+        updateApiProgressText(`\n응답 배열이 비어 있습니다.`);
+        setTimeout(() => closeApiProgressModal(), 3000);
+        return;
+      }
+      
+      // 첫 번째 항목 사용
+      data = data[0];
+    }
+    
+    if (data.error) {
+      updateApiProgressText(`\n오류 발생: ${data.error}`);
+      setTimeout(() => closeApiProgressModal(), 3000);
+      return;
+    }
+    
+    // API 응답 구조 검사
+    if (!data.MASTERDATA) {
+      updateApiProgressText(`\nMASTERDATA 필드가 없습니다. 전체 응답 구조: ${JSON.stringify(data)}`);
+      setTimeout(() => closeApiProgressModal(), 5000);
+      return;
+    }
+    
+    // MASTERDATA 사용
+    const vesselData = data.MASTERDATA;
+    
+    // 데이터 매핑 및 업데이트
+    row.api_name = vesselData.NAME || '';
+    row.api_owner = vesselData.OWNER || '';
+    row.api_manager = vesselData.MANAGER || '';
+    
+    // Firebase 업데이트
+    await db.ref(`${asPath}/${uid}`).update({
+      api_name: row.api_name,
+      api_owner: row.api_owner,
+      api_manager: row.api_manager
+    });
+    
+    updateApiProgressText(`\n데이터 가져오기 성공!\n\n선박명: ${row.api_name}\n선주사: ${row.api_owner}\n관리사: ${row.api_manager}`);
+    
+    // 히스토리 추가
+    addHistory(`IMO ${imoNumber} API 데이터 업데이트`);
+    
+    // 현재 행만 업데이트하여 순서 유지
+    updateRowInTable(row);
+    
+    // 성공 후 모달 닫기 (3초 후)
+    setTimeout(() => closeApiProgressModal(), 3000);
+    
+  } catch (error) {
+    console.error("API 요청 오류:", error);
+    updateApiProgressText(`\n오류 발생: ${error.message}`);
+    setTimeout(() => closeApiProgressModal(), 3000);
+  }
+}
+// 전체 선박 데이터 반영
+async function refreshAllVessels() {
+  // 관리자 비밀번호 확인
+  if (!adminAuthorized) {
+    const pw = prompt("관리자 비밀번호를 입력하세요:");
+    if (pw !== 'snsys1234') {
+      alert("관리자 비밀번호가 다릅니다.");
+      return;
+    }
+    adminAuthorized = true;
+  }
+
+  if (!g_apiConfig.apiKey) {
+    alert("API 키가 설정되지 않았습니다. API 설정에서 키를 설정해주세요.");
+    return;
+  }
+  
+  // IMO 번호가 있는 행들 필터링
+  const vesselsWithImo = asData.filter(row => row.imo && row.imo.trim());
+  
+  if (vesselsWithImo.length === 0) {
+    alert("IMO 번호가 있는 선박이 없습니다.");
+    return;
+  }
+  
+  if (!confirm(`${vesselsWithImo.length}개 선박의 데이터를 모두 업데이트하시겠습니까? 이 작업은 시간이 오래 걸릴 수 있습니다.`)) {
+    return;
+  }
+  
+  // API 진행 모달 표시
+  showApiProgressModal();
+  clearApiProgressText();
+  updateApiProgressText(`전체 ${vesselsWithImo.length}개 선박 데이터 업데이트 시작...`);
+
+  // 나머지 함수 코드...
+  
+  // 크레딧 확인
+  try {
+    // CORS 프록시 사용
+    const corsProxy = "https://corsproxy.io/?";
+    const statusUrl = `${corsProxy}${encodeURIComponent(`https://api.vesselfinder.com/status?userkey=${g_apiConfig.apiKey}`)}`;
+    
+    const statusResponse = await fetch(statusUrl);
+    const statusData = await statusResponse.json();
+    
+    if (statusData.STATUS && statusData.STATUS.CREDITS) {
+      const credits = parseInt(statusData.STATUS.CREDITS, 10);
+      const neededCredits = vesselsWithImo.length * 3; // 각 선박당 3 크레딧 필요
+      
+      updateApiProgressText(`\n사용 가능 크레딧: ${credits}`);
+      updateApiProgressText(`\n필요 크레딧: ${neededCredits} (${vesselsWithImo.length}개 선박 × 3)`);
+      
+      if (credits < neededCredits) {
+        updateApiProgressText(`\n⚠️ 경고: 크레딧이 부족합니다. 일부 선박만 업데이트될 수 있습니다.`);
+        
+        if (!confirm("크레딧이 부족합니다. 계속 진행하시겠습니까?")) {
+          closeApiProgressModal();
+          return;
+        }
+      }
+    }
+  } catch (error) {
+    console.error("API 상태 확인 오류:", error);
+    updateApiProgressText(`\n크레딧 확인 중 오류: ${error.message}`);
+    
+    if (!confirm("크레딧 확인 중 오류가 발생했습니다. 계속 진행하시겠습니까?")) {
+      closeApiProgressModal();
+      return;
+    }
+  }
+  
+  // 일괄 업데이트를 위한 객체
+  const updates = {};
+  let successCount = 0;
+  let errorCount = 0;
+  
+  // API 속도 제한을 위한 딜레이 함수
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  
+   // 순차적으로 각 선박에 대해 API 호출
+  for (let i = 0; i < vesselsWithImo.length; i++) {
+    const row = vesselsWithImo[i];
+    const imoNumber = row.imo.trim();
+    
+    updateApiProgressText(`\n[${i+1}/${vesselsWithImo.length}] IMO ${imoNumber} 처리 중...`);
+    
+    try {
+      const corsProxy = "https://api.allorigins.win/raw?url=";
+      const targetUrl = `${g_apiConfig.baseUrl}?userkey=${g_apiConfig.apiKey}&imo=${imoNumber}`;
+      const apiUrl = `${corsProxy}${encodeURIComponent(targetUrl)}`;
+      
+      const response = await fetch(apiUrl);
+      const responseText = await response.text();
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        updateApiProgressText(`\n  JSON 파싱 오류: ${e.message}`);
+        errorCount++;
+        continue;
+      }
+      
+      // 응답이 배열인지 확인
+      if (Array.isArray(data)) {
+        if (data.length === 0) {
+          updateApiProgressText(`\n  응답 배열이 비어 있습니다.`);
+          errorCount++;
+          continue;
+        }
+        
+        // 첫 번째 항목 사용
+        data = data[0];
+      }
+      
+      if (data.error) {
+        updateApiProgressText(`\n  오류: ${data.error}`);
+        errorCount++;
+        continue;
+      }
+      
+      // API 응답 구조 검사
+      if (!data.MASTERDATA) {
+        updateApiProgressText(`\n  MASTERDATA 필드가 없습니다.`);
+        errorCount++;
+        continue;
+      }
+      
+      // MASTERDATA 사용
+      const vesselData = data.MASTERDATA;
+      
+      // 데이터 매핑 및 업데이트를 위해 준비
+      const api_name = vesselData.NAME || '';
+      const api_owner = vesselData.OWNER || '';
+      const api_manager = vesselData.MANAGER || '';
+      
+      updates[`${asPath}/${row.uid}/api_name`] = api_name;
+      updates[`${asPath}/${row.uid}/api_owner`] = api_owner;
+      updates[`${asPath}/${row.uid}/api_manager`] = api_manager;
+      
+      // 메모리 내 데이터도 업데이트
+      row.api_name = api_name;
+      row.api_owner = api_owner;
+      row.api_manager = api_manager;
+      
+      updateApiProgressText(`\n  성공: ${api_name} (${api_owner})`);
+      successCount++;
+      
+      // API 속도 제한을 위한 딜레이 (1초)
+      await delay(1000);
+      
+    } catch (error) {
+      console.error(`IMO ${imoNumber} 처리 오류:`, error);
+      updateApiProgressText(`\n  오류: ${error.message}`);
+      errorCount++;
+    }
+  }
+  
+  // 일괄 업데이트 수행
+  try {
+    await db.ref().update(updates);
+    updateApiProgressText(`\n\n업데이트 완료: 성공 ${successCount}건, 실패 ${errorCount}건`);
+    
+    // 히스토리 추가
+    addHistory(`전체 선박 API 데이터 업데이트 (성공 ${successCount}건, 실패 ${errorCount}건)`);
+    
+    // 테이블 새로고침
+    renderTable(true);
+    
+    // 완료 메시지 (5초 후 닫기)
+    setTimeout(() => closeApiProgressModal(), 5000);
+    
+  } catch (error) {
+    console.error("일괄 업데이트 오류:", error);
+    updateApiProgressText(`\n\n일괄 업데이트 중 오류 발생: ${error.message}`);
+  }
+}
+
+// 단일 행만 업데이트하는 함수 (순서 유지)
+function updateRowInTable(rowData) {
+  if (!rowData || !rowData.uid) return;
+  
+  // 해당 행 찾기
+  const rowElement = document.querySelector(`.rowSelectChk[data-uid="${rowData.uid}"]`);
+  if (!rowElement) return;
+  
+  const tr = rowElement.closest('tr');
+  if (!tr) return;
+  
+  // API 관련 셀 업데이트
+  const apiNameCell = tr.querySelector(`td[data-field="api_name"] input`);
+  const apiOwnerCell = tr.querySelector(`td[data-field="api_owner"] input`);
+  const apiManagerCell = tr.querySelector(`td[data-field="api_manager"] input`);
+  
+  if (apiNameCell) apiNameCell.value = rowData.api_name || '';
+  if (apiOwnerCell) apiOwnerCell.value = rowData.api_owner || '';
+  if (apiManagerCell) apiManagerCell.value = rowData.api_manager || '';
+}
+
+// 여러 행 업데이트하는 함수 (순서 유지)
+function updateMultipleRowsInTable() {
+  // 모든 행에 대해 업데이트 적용
+  asData.forEach(rowData => {
+    updateRowInTable(rowData);
+  });
+  
+  // 상태 카드 업데이트 (필요한 경우)
+  updateStatusCounts();
+}
+
 /** ==================================
  *  사이드바 및 필터 기능
  * ===================================*/
@@ -1429,6 +1989,7 @@ function switchSideMode(mode) {
   document.getElementById('filterName').value = "";
   document.getElementById('filterOwner').value = "";
   document.getElementById('filterMajor').value = "";
+  document.getElementById('filterRepMail').value = "";
   document.getElementById('filterGroup').value = "";
   document.getElementById('filterAsType').value = "";
   document.getElementById('filterManager').value = "";
@@ -1782,9 +2343,8 @@ function handleColumnResize(e) {
   // 최소 너비 보장
   if (newWidth >= 30) {
     resizingCol.style.width = newWidth + 'px';
-  }
+   }
 }
-
 // 열 크기 조절 종료
 function stopColumnResize() {
   document.removeEventListener('mousemove', handleColumnResize);
@@ -1838,6 +2398,7 @@ function downloadExcel() {
     try {
       const arr = asData.map(d => ({
         공번: d.공번, 공사: d.공사, IMO: d.imo, HULL: d.hull, SHIPNAME: d.shipName,
+        'API_NAME': d.api_name, 'API_OWNER': d.api_owner, 'API_MANAGER': d.api_manager,
         '호선 대표메일': d.repMail, 'SHIP TYPE': d.shipType, SCALE: d.scale, 구분: d.구분,
         SHIPOWNER: d.shipowner, 주요선사: d.major, 그룹: d.group, SHIPYARD: d.shipyard,
         계약: d.contract, 'AS 구분': d.asType, 인도일: d.delivery, 보증종료일: d.warranty,
@@ -1912,6 +2473,10 @@ function readExcelFile(file, mode) {
             imo: parseCell(r['IMO']),
             hull: parseCell(r['HULL']),
             shipName: parseCell(r['SHIPNAME']),
+            // API 필드 추가
+            api_name: parseCell(r['API_NAME']),
+            api_owner: parseCell(r['API_OWNER']),
+            api_manager: parseCell(r['API_MANAGER']),
             repMail: parseCell(r['호선 대표메일']),
             shipType: parseCell(r['SHIP TYPE']),
             scale: parseCell(r['SCALE']),
@@ -2491,7 +3056,7 @@ async function callGeminiForSummary(contentText, apiKey, modelName) {
       updateAiProgressText("\n[에러] " + JSON.stringify(data, null, 2));
       return "";
     }
-  } catch (err) {A
+  } catch (err) {
     console.error("Gemini API 요청 오류:", err);
     updateAiProgressText("\n[에러 발생]\n" + err.message);
     return "";
@@ -2515,27 +3080,4 @@ function isEqual(obj1, obj2) {
   }
   
   return true;
-}
-// 정렬 표시기 스타일 추가
-function addSortIndicatorStyles() {
-  const styleElem = document.createElement('style');
-  styleElem.textContent = `
-    th {
-      cursor: pointer;
-      position: relative;
-      user-select: none;
-    }
-    th:hover {
-      background-color: #264c70;
-    }
-    .sort-indicator {
-      display: inline-block;
-      margin-left: 5px;
-      font-size: 0.8em;
-    }
-    th[data-field] {
-      padding-right: 20px; /* 정렬 아이콘 공간 확보 */
-    }
-  `;
-  document.head.appendChild(styleElem);
 }
