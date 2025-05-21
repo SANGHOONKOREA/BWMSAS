@@ -9,6 +9,7 @@
   --border-color: #d1d5db;
   --highlight-color: #e0eaf3;
   --text-color: #2d3e50;
+  --api-color: #28a745;
 }
 
 * { box-sizing: border-box; margin:0; padding:0; }
@@ -136,6 +137,93 @@ th {
 }
 tr:hover td { background:var(--highlight-color); }
 
+/* API 관련 스타일 */
+td[data-field="api_name"] input,
+td[data-field="api_owner"] input,
+td[data-field="api_manager"] input {
+  background-color: #f8f9fa;
+  color: #495057;
+  font-weight: 500;
+}
+
+th[data-field="api_name"],
+th[data-field="api_owner"],
+th[data-field="api_manager"] {
+  background-color: var(--api-color);
+}
+
+#apiRefreshAllBtn {
+  background: var(--api-color);
+  font-weight: bold;
+}
+
+#apiRefreshAllBtn:hover {
+  background: #218838;
+}
+
+/* API 진행 상황 모달 */
+#apiProgressModal {
+  display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.3);
+}
+#apiProgressModal .modal-content {
+  background:#fff; margin:10% auto; width:600px; border-radius:6px; padding:10px; position:relative;
+}
+#apiProgressModal .close {
+  position:absolute; right:10px; top:10px; font-size:18px; cursor:pointer;
+}
+#apiProgressText {
+  width:100%; height:200px; border:1px solid #ccc; border-radius:6px;
+  padding:6px; overflow-y:auto; white-space:pre-wrap; margin-top:10px;
+  font-family: monospace;
+}
+
+/* API 설정 모달 */
+#apiConfigModal {
+  display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.3);
+}
+#apiConfigModal .modal-content {
+  background:#fff; margin:5% auto; width:500px; border-radius:6px;
+  padding:15px; position:relative;
+}
+#apiConfigModal .close {
+  position:absolute; right:15px; top:15px; font-size:18px; cursor:pointer;
+}
+#apiConfigModal h2 {
+  margin:0 0 15px; font-size:1.2em; color: var(--api-color);
+}
+#apiConfigModal h3 {
+  margin:10px 0; font-size:1em;
+}
+#apiConfigModal .form-group {
+  margin-bottom:12px;
+}
+#apiConfigModal .form-group label {
+  display:block; font-weight:600; margin-bottom:5px;
+}
+#apiConfigModal input[type="text"] {
+  width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;
+}
+#apiConfigModal .btn-row {
+  display:flex; gap:8px; justify-content:flex-end; margin-top:15px;
+}
+#apiConfigModal button {
+  background:var(--api-color); color:#fff; border:none; border-radius:4px;
+  cursor:pointer; font-size:0.9em; padding:8px 12px;
+}
+#apiConfigModal button:hover {
+  background: #218838;
+}
+#apiCreditStatus {
+  margin-top: 10px;
+  padding: 10px;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
 /* 행 높이 조절 */
 .row-resizer {
   position: absolute; left:0; bottom:0; width:100%; height:5px;
@@ -225,6 +313,9 @@ tr:hover .row-resizer { opacity:1; }
 th[data-field="공번"], td[data-field="공번"] { min-width: 100px; }
 th[data-field="공사"], td[data-field="공사"] { min-width: 50px; }
 th[data-field="imo"], td[data-field="imo"] { min-width: 90px; }
+th[data-field="api_name"], td[data-field="api_name"] { min-width: 120px; }
+th[data-field="api_owner"], td[data-field="api_owner"] { min-width: 150px; }
+th[data-field="api_manager"], td[data-field="api_manager"] { min-width: 150px; }
 th[data-field="hull"], td[data-field="hull"] { min-width: 80px; }
 th[data-field="shipName"], td[data-field="shipName"] { min-width: 150px; }
 th[data-field="repMail"], td[data-field="repMail"] { min-width: 150px; }
@@ -724,4 +815,97 @@ th[data-field="지연 사유"], td[data-field="지연 사유"] { min-width: 300p
 .save-success {
   background-color: #28a745 !important;
   transition: background-color 0.3s ease;
+}
+
+/* 선박 데이터 API 관련 추가 스타일 */
+/* 반영 버튼 */
+td button {
+  background-color: var(--api-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: all 0.2s;
+}
+
+td button:hover {
+  background-color: #218838;
+  transform: translateY(-1px);
+}
+
+td button:active {
+  transform: translateY(0);
+}
+
+/* API 필드 강조 */
+th[data-field="api_name"],
+th[data-field="api_owner"],
+th[data-field="api_manager"] {
+  background-color: var(--api-color);
+}
+
+/* API 데이터가 있는 셀 스타일 */
+td[data-field="api_name"] input:not([value=""]),
+td[data-field="api_owner"] input:not([value=""]),
+td[data-field="api_manager"] input:not([value=""]) {
+  background-color: #e8f5e9;
+  font-weight: 500;
+  color: #1b5e20;
+  border-color: #a5d6a7;
+}
+
+/* API 설정 버튼 스타일 */
+#apiConfigBtn {
+  background-color: var(--api-color);
+  font-weight: 500;
+}
+
+#apiConfigBtn:hover {
+  background-color: #218838;
+}
+
+/* API 전체 반영 버튼 강조 */
+#apiRefreshAllBtn {
+  background-color: var(--api-color);
+  font-weight: 600;
+  border: 2px solid #1d7430;
+}
+
+#apiRefreshAllBtn:hover {
+  background-color: #218838;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* 로딩 오버레이 */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0,0,0,0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  color: white;
+  font-size: 1.2em;
+}
+
+.loading-spinner {
+  border: 4px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  border-top: 4px solid white;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-right: 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
