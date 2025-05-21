@@ -100,6 +100,8 @@
       <button class="user-manage-btn" id="userManageBtn">사용자 관리</button>
       <!-- (신규) AI 설정 관리 버튼 -->
       <button class="user-manage-btn" id="aiConfigBtn" style="background:#343a40;">AI 설정 관리</button>
+      <!-- API 설정 관리 버튼 -->
+      <button class="user-manage-btn" id="apiConfigBtn" style="background:#28a745;">API 설정 관리</button>
     </div>
   </div>
 
@@ -215,6 +217,12 @@
             <th data-field="공번">공번<div class="col-resizer"></div></th>
             <th data-field="공사">공사<div class="col-resizer"></div></th>
             <th data-field="imo">IMO NO.<div class="col-resizer"></div></th>
+            <!-- 추가된 API 관련 필드 -->
+            <th data-field="api_name">NAME<div class="col-resizer"></div></th>
+            <th data-field="api_owner">OWNER<div class="col-resizer"></div></th>
+            <th data-field="api_manager">MANAGER<div class="col-resizer"></div></th>
+            <th>반영<div class="col-resizer"></div></th>
+            <!-- 기존 필드 -->
             <th data-field="hull">HULL NO.<div class="col-resizer"></div></th>
             <th data-field="shipName">SHIPNAME<div class="col-resizer"></div></th>
             <th data-field="repMail">호선 대표메일<div class="col-resizer"></div></th>
@@ -267,6 +275,8 @@
       <button id="clearHistoryBtn">히스토리 전체 삭제</button>
       <!-- (추가) 선사별 AI 요약 버튼 -->
       <button id="ownerAISummaryBtn" style="background:#6c757d;">선사별 AI 요약</button>
+      <!-- (추가) API 전체 반영 버튼 -->
+      <button id="apiRefreshAllBtn" style="background:#28a745;">API 전체 반영</button>
     </div>
   </div>
 
@@ -303,6 +313,31 @@
       <div class="btn-row">
         <button id="addUserConfirmBtn">추가</button>
         <button onclick="closeUserModal()">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- API 설정 관리 모달 -->
+  <div id="apiConfigModal">
+    <div class="modal-content">
+      <span class="close" onclick="closeApiConfigModal()">&times;</span>
+      <h2>API 설정 관리</h2>
+      <div class="form-group">
+        <label>API Key</label>
+        <input type="text" id="vesselfinder_apikey" placeholder="예: WS-369D3791-7523E2">
+      </div>
+      <div class="form-group">
+        <label>API Base URL</label>
+        <input type="text" id="vesselfinder_baseurl" placeholder="예: https://api.vesselfinder.com/masterdata" value="https://api.vesselfinder.com/masterdata">
+      </div>
+      <div class="btn-row">
+        <button id="saveApiConfigBtn">저장</button>
+        <button onclick="closeApiConfigModal()">취소</button>
+      </div>
+      <hr style="margin:15px 0;">
+      <div class="form-group">
+        <h3>API 사용량 확인</h3>
+        <p id="apiCreditStatus">로딩 중...</p>
       </div>
     </div>
   </div>
@@ -387,6 +422,15 @@
       <span class="close" onclick="document.getElementById('aiProgressModal').style.display='none';">&times;</span>
       <h2>AI 요약 진행 상황</h2>
       <div id="aiProgressText"></div>
+    </div>
+  </div>
+
+  <!-- API 진행 상황 표시 모달 -->
+  <div id="apiProgressModal">
+    <div class="modal-content">
+      <span class="close" onclick="document.getElementById('apiProgressModal').style.display='none';">&times;</span>
+      <h2>API 데이터 가져오기</h2>
+      <div id="apiProgressText"></div>
     </div>
   </div>
 
