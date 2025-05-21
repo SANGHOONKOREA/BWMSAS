@@ -723,8 +723,18 @@ async function loadAiConfig() {
 /** ==================================
  *  API 설정 관리
  * ===================================*/
-// API 설정 모달 열기
+// 모달 닫기 함수 개선
+function closeApiConfigModal() {
+  document.getElementById('apiConfigModal').style.display = 'none';
+  // 다른 모달도 확실히 닫기
+  document.getElementById('apiProgressModal').style.display = 'none';
+}
+
+// API 설정 모달 열기 함수 개선
 function openApiConfigModal() {
+  // 다른 모달 모두 닫기
+  document.getElementById('apiProgressModal').style.display = 'none';
+  
   if (!adminAuthorized) {
     const pw = prompt("관리자 비밀번호:");
     if (pw !== 'snsys1234') {
@@ -741,12 +751,17 @@ function openApiConfigModal() {
   // API 크레딧 상태 확인
   checkApiCreditStatus();
   
-  document.getElementById('apiConfigModal').style.display = 'block';
+  // 모달 표시 전 스타일 확인
+  const modal = document.getElementById('apiConfigModal');
+  modal.style.zIndex = '10000'; // 최상위 z-index 설정
+  modal.style.display = 'block';
 }
 
-// API 설정 모달 닫기
+// 모달 닫기 함수 개선
 function closeApiConfigModal() {
   document.getElementById('apiConfigModal').style.display = 'none';
+  // 다른 모달도 확실히 닫기
+  document.getElementById('apiProgressModal').style.display = 'none';
 }
 
 // API 설정 저장
