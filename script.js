@@ -40,6 +40,7 @@ const auth = firebase.auth();
 // 페이지 로딩 성능 향상을 위한 캐시 및 지연 로딩 변수
 let asData = [];
 let currentMode = 'manager';  // 초기: 담당자
+let currentLang = 'ko';       // 기본 언어
 let sortField = '';
 let sortAsc = true;
 let adminAuthorized = false;  // 관리자 비번 확인용
@@ -50,6 +51,128 @@ let dataChanged = false;      // 데이터 변경 여부 추적
 let lastFilterState = {}; // 마지막 필터 상태
 let dataLoaded = false; // 데이터 로드 여부
 let pendingRowUpdates = new Map(); // 업데이트 대기 중인 행
+
+// 다국어 매핑
+const i18n = {
+  ko: {
+    title: 'AS 현황 관리 (통합 + AI 요약)',
+    headerTitle: 'AS 현황 관리',
+    userInfo: '사용자:',
+    logout: '로그아웃',
+    connStatus: '연결 상태: 확인 중...',
+    manager: '담당자',
+    owner: '선주사',
+    managerList: '담당자 목록',
+    userManage: '사용자 관리',
+    aiConfig: 'AI 설정 관리',
+    apiConfig: 'API 설정 관리',
+    addRow: '행 추가',
+    deleteRow: '선택 행 삭제',
+    save: '저장',
+    downloadExcel: '엑셀 다운로드',
+    uploadExcel: '엑셀 업로드',
+    uploadStatus: 'AS 현황 업로드',
+    history: '히스토리 조회',
+    clearHistory: '히스토리 전체 삭제',
+    ownerSummary: '선사별 AI 요약',
+    apiRefreshAll: 'API 전체 반영',
+    loadAll: '전체조회',
+    thProject: '공번',
+    thConstruction: '공사',
+    thIMO: 'IMO NO.',
+    thName: 'NAME',
+    thOwner: 'OWNER',
+    thManager: 'MANAGER',
+    thApply: '반영',
+    thHull: 'HULL NO.',
+    thShipName: 'SHIPNAME',
+    thRepMail: '호선 대표메일',
+    thShipType: 'SHIP TYPE',
+    thScale: 'SCALE',
+    thCategory: '구분',
+    thShipOwner: 'SHIPOWNER',
+    thMajor: '주요선사',
+    thGroup: '그룹',
+    thShipyard: 'SHIPYARD',
+    thContract: '계약',
+    thAsType: 'AS 구분',
+    thDelivery: '인도일',
+    thWarranty: '보증종료일',
+    thPrevManager: '전 담당',
+    thManager2: '현 담당',
+    thStatus: '현황',
+    thTranslation: '번역',
+    thTranslateBtn: '번역',
+    thAsDate: 'AS접수일자',
+    thTechEnd: '기술적종료일',
+    thElapsed: '경과일',
+    thNormalDelay: '정상지연',
+    thDelayReason: '지연 사유'
+  },
+  en: {
+    title: 'AS Status Management',
+    headerTitle: 'AS Status Management',
+    userInfo: 'User:',
+    logout: 'Logout',
+    connStatus: 'Connection: checking...',
+    manager: 'Manager',
+    owner: 'Owner',
+    managerList: 'Manager List',
+    userManage: 'User Manage',
+    aiConfig: 'AI Config',
+    apiConfig: 'API Config',
+    addRow: 'Add Row',
+    deleteRow: 'Delete Selected',
+    save: 'Save',
+    downloadExcel: 'Download Excel',
+    uploadExcel: 'Upload Excel',
+    uploadStatus: 'Upload Status',
+    history: 'History',
+    clearHistory: 'Clear History',
+    ownerSummary: 'Owner AI Summary',
+    apiRefreshAll: 'API Refresh All',
+    loadAll: 'Load All',
+    thProject: 'Project',
+    thConstruction: 'Const',
+    thIMO: 'IMO NO.',
+    thName: 'Name',
+    thOwner: 'Owner',
+    thManager: 'Manager',
+    thApply: 'Apply',
+    thHull: 'Hull No.',
+    thShipName: 'Ship Name',
+    thRepMail: 'Rep. Mail',
+    thShipType: 'Ship Type',
+    thScale: 'Scale',
+    thCategory: 'Category',
+    thShipOwner: 'Shipowner',
+    thMajor: 'Major',
+    thGroup: 'Group',
+    thShipyard: 'Shipyard',
+    thContract: 'Contract',
+    thAsType: 'AS Type',
+    thDelivery: 'Delivery',
+    thWarranty: 'Warranty',
+    thPrevManager: 'Prev Mgr',
+    thManager2: 'Manager',
+    thStatus: 'Status',
+    thTranslation: 'Translation',
+    thTranslateBtn: 'Translate',
+    thAsDate: 'AS Date',
+    thTechEnd: 'Tech End',
+    thElapsed: 'Elapsed',
+    thNormalDelay: 'Delay OK',
+    thDelayReason: 'Reason'
+  },
+  zh: {
+    title: 'AS\u73b0\u72b6\u7ba1\u7406',
+    headerTitle: 'AS\u73b0\u72b6\u7ba1\u7406'
+  },
+  ja: {
+    title: 'AS\u73fe\u72b6\u7ba1\u7406',
+    headerTitle: 'AS\u73fe\u72b6\u7ba1\u7406'
+  }
+};
 
 // 경로 정의
 const asPath = 'as-service/data';
@@ -81,12 +204,15 @@ let g_apiConfig = {
 document.addEventListener('DOMContentLoaded', () => {
   // 모든 이벤트 리스너 등록
   registerEventListeners();
-  
+
   // 테이블 가로 스크롤 대응 스타일 추가
   addTableScrollStyles();
-  
+
   // 정렬 화살표 스타일 추가
   addSortIndicatorStyles();
+
+  // 기본 언어 적용
+  switchLanguage(currentLang);
 });
 
 // 모든 이벤트 리스너 등록 함수 - 성능 개선을 위해 일괄 처리
@@ -104,6 +230,11 @@ function registerEventListeners() {
   document.getElementById('aiConfigBtn').addEventListener('click', openAiConfigModal);
   document.getElementById('saveAiConfigBtn').addEventListener('click', saveAiConfig);
   document.getElementById('ownerAISummaryBtn').addEventListener('click', openOwnerAIModal);
+
+  // 언어 변경
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchLanguage(btn.dataset.lang));
+  });
   
   // API 설정 관련
   document.getElementById('apiConfigBtn').addEventListener('click', openApiConfigModal);
@@ -1364,6 +1495,25 @@ function createTableRow(row, counts) {
   tr.appendChild(makeCell(row.prevManager, 'prevManager'));
   tr.appendChild(makeCell(row.manager, 'manager'));
   tr.appendChild(makeCell(row.현황, '현황'));
+
+  // 번역 결과 표시 셀
+  const transTd = document.createElement('td');
+  const transInput = document.createElement('input');
+  transInput.type = 'text';
+  transInput.value = row.translation || '';
+  transInput.readOnly = true;
+  transInput.style.width = '95%';
+  transInput.dataset.uid = row.uid;
+  transTd.appendChild(transInput);
+  tr.appendChild(transTd);
+
+  // 번역 버튼
+  const transBtnTd = document.createElement('td');
+  const transBtn = document.createElement('button');
+  transBtn.textContent = '번역';
+  transBtn.addEventListener('click', () => translateStatus(row.uid));
+  transBtnTd.appendChild(transBtn);
+  tr.appendChild(transBtnTd);
 
   // (1) AI 요약 버튼 (단일 행)
   const aiTd = document.createElement('td');
@@ -2961,6 +3111,45 @@ async function openOwnerAIModal() {
   } catch (err) {
     console.error("선사별 AI 요약 오류:", err);
     alert("선사별 AI 요약 처리 중 오류가 발생했습니다.");
+  } finally {
+    closeAiProgressModal();
+  }
+}
+
+// 언어 전환
+function switchLanguage(lang) {
+  currentLang = lang;
+  document.documentElement.lang = lang;
+  const dict = i18n[lang] || {};
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const txt = dict[key];
+    if (!txt) return;
+    if (el.childNodes.length > 1) {
+      el.childNodes[0].nodeValue = txt + ' ';
+    } else {
+      el.textContent = txt;
+    }
+  });
+}
+
+// (4) 현황 번역
+async function translateStatus(uid) {
+  const row = asData.find(r => r.uid === uid);
+  if (!row) return;
+  const langNameMap = { ko: '한국어', en: '영어', zh: '중국어', ja: '일본어' };
+  const target = langNameMap[currentLang] || '영어';
+  const prompt = `다음 문장을 ${target}로 번역해주세요:\n\n${row.현황}`;
+
+  showAiProgressModal();
+  clearAiProgressText();
+  try {
+    const translated = await callAiForSummary(prompt);
+    row.translation = translated || '';
+    renderTable(true);
+  } catch (err) {
+    console.error('번역 오류:', err);
+    alert('번역 중 오류가 발생했습니다.');
   } finally {
     closeAiProgressModal();
   }
