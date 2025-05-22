@@ -40,6 +40,7 @@ const auth = firebase.auth();
 // 페이지 로딩 성능 향상을 위한 캐시 및 지연 로딩 변수
 let asData = [];
 let currentMode = 'manager';  // 초기: 담당자
+let currentLang = 'ko';       // 기본 언어
 let sortField = '';
 let sortAsc = true;
 let adminAuthorized = false;  // 관리자 비번 확인용
@@ -50,6 +51,245 @@ let dataChanged = false;      // 데이터 변경 여부 추적
 let lastFilterState = {}; // 마지막 필터 상태
 let dataLoaded = false; // 데이터 로드 여부
 let pendingRowUpdates = new Map(); // 업데이트 대기 중인 행
+
+// 다국어 매핑
+const i18n = {
+  ko: {
+    title: 'AS 현황 관리 (통합 + AI 요약)',
+    headerTitle: 'AS 현황 관리',
+    userInfo: '사용자:',
+    logout: '로그아웃',
+    connStatus: '연결 상태: 확인 중...',
+    manager: '담당자',
+    owner: '선주사',
+    managerList: '담당자 목록',
+    userManage: '사용자 관리',
+    aiConfig: 'AI 설정 관리',
+    apiConfig: 'API 설정 관리',
+    addRow: '행 추가',
+    deleteRow: '선택 행 삭제',
+    save: '저장',
+    downloadExcel: '엑셀 다운로드',
+    uploadExcel: '엑셀 업로드',
+    uploadStatus: 'AS 현황 업로드',
+    history: '히스토리 조회',
+    clearHistory: '히스토리 전체 삭제',
+    ownerSummary: '선사별 AI 요약',
+    apiRefreshAll: 'API 전체 반영',
+    loadAll: '전체조회',
+    normalA: '정상A',
+    normalB: '정상B',
+    paidNormal: '유상정상',
+    partial: '부분동작',
+    notWorking: '동작불가',
+    fIMO: 'IMO NO.',
+    fHull: 'HULL NO.',
+    fShipName: 'SHIPNAME',
+    fShipOwner: 'SHIPOWNER',
+    fMajor: '주요선사',
+    fRepMail: '호선 대표메일',
+    fGroup: '그룹',
+    fAsType: 'AS 구분',
+    fManager: '현 담당',
+    fActive: '동작여부',
+    thProject: '공번',
+    thConstruction: '공사',
+    thIMO: 'IMO NO.',
+    thName: 'NAME',
+    thOwner: 'OWNER',
+    thManager: 'MANAGER',
+    thApply: '반영',
+    thHull: 'HULL NO.',
+    thShipName: 'SHIPNAME',
+    thRepMail: '호선 대표메일',
+    thShipType: 'SHIP TYPE',
+    thScale: 'SCALE',
+    thCategory: '구분',
+    thShipOwner: 'SHIPOWNER',
+    thMajor: '주요선사',
+    thGroup: '그룹',
+    thShipyard: 'SHIPYARD',
+    thContract: '계약',
+    thAsType: 'AS 구분',
+    thDelivery: '인도일',
+    thWarranty: '보증종료일',
+    thPrevManager: '전 담당',
+    thManager2: '현 담당',
+    thStatus: '현황',
+    thTranslation: '번역',
+    thTranslateBtn: '번역',
+    thAsDate: 'AS접수일자',
+    thTechEnd: '기술적종료일',
+    thElapsed: '경과일',
+    thNormalDelay: '정상지연',
+    thDelayReason: '지연 사유'
+  },
+  en: {
+    title: 'AS Status Management',
+    headerTitle: 'AS Status Management',
+    userInfo: 'User:',
+    logout: 'Logout',
+    connStatus: 'Connection: checking...',
+    manager: 'Manager',
+    owner: 'Owner',
+    managerList: 'Manager List',
+    userManage: 'User Manage',
+    aiConfig: 'AI Config',
+    apiConfig: 'API Config',
+    addRow: 'Add Row',
+    deleteRow: 'Delete Selected',
+    save: 'Save',
+    downloadExcel: 'Download Excel',
+    uploadExcel: 'Upload Excel',
+    uploadStatus: 'Upload Status',
+    history: 'History',
+    clearHistory: 'Clear History',
+    ownerSummary: 'Owner AI Summary',
+    apiRefreshAll: 'API Refresh All',
+    loadAll: 'Load All',
+    thProject: 'Project',
+    thConstruction: 'Const',
+    thIMO: 'IMO NO.',
+    thName: 'Name',
+    thOwner: 'Owner',
+    thManager: 'Manager',
+    thApply: 'Apply',
+    thHull: 'Hull No.',
+    thShipName: 'Ship Name',
+    thRepMail: 'Rep. Mail',
+    thShipType: 'Ship Type',
+    thScale: 'Scale',
+    thCategory: 'Category',
+    thShipOwner: 'Shipowner',
+    thMajor: 'Major',
+    thGroup: 'Group',
+    thShipyard: 'Shipyard',
+    thContract: 'Contract',
+    thAsType: 'AS Type',
+    thDelivery: 'Delivery',
+    thWarranty: 'Warranty',
+    thPrevManager: 'Prev Mgr',
+    thManager2: 'Manager',
+    thStatus: 'Status',
+    thTranslation: 'Translation',
+    thTranslateBtn: 'Translate',
+    thAsDate: 'AS Date',
+    thTechEnd: 'Tech End',
+    thElapsed: 'Elapsed',
+    thNormalDelay: 'Delay OK',
+    thDelayReason: 'Reason'
+  },
+  zh: {
+    title: 'AS状态管理',
+    headerTitle: 'AS状态管理',
+    userInfo: '用户:',
+    logout: '登出',
+    connStatus: '连接状态: 检查中...',
+    manager: '负责人',
+    owner: '船东',
+    managerList: '负责人列表',
+    userManage: '用户管理',
+    aiConfig: 'AI设置',
+    apiConfig: 'API设置',
+    addRow: '添加行',
+    deleteRow: '删除选中',
+    save: '保存',
+    downloadExcel: '下载Excel',
+    uploadExcel: '上传Excel',
+    uploadStatus: '上传状态',
+    history: '历史记录',
+    clearHistory: '清空历史',
+    ownerSummary: '按船东AI摘要',
+    apiRefreshAll: 'API全部应用',
+    loadAll: '全部加载',
+    thProject: '项目',
+    thConstruction: '工程',
+    thIMO: 'IMO NO.',
+    thName: '名称',
+    thOwner: '船东',
+    thManager: '负责人',
+    thApply: '应用',
+    thHull: '船体号',
+    thShipName: '船名',
+    thRepMail: '代表邮件',
+    thShipType: '船型',
+    thScale: '规模',
+    thCategory: '分类',
+    thShipOwner: '船东',
+    thMajor: '主要船公司',
+    thGroup: '分组',
+    thShipyard: '船厂',
+    thContract: '合同',
+    thAsType: 'AS类型',
+    thDelivery: '交付日',
+    thWarranty: '保修结束',
+    thPrevManager: '前负责人',
+    thManager2: '负责人',
+    thStatus: '现状',
+    thTranslation: '翻译',
+    thTranslateBtn: '翻译',
+    thAsDate: 'AS接收日',
+    thTechEnd: '技术结束日',
+    thElapsed: '经过日',
+    thNormalDelay: '正常延迟',
+    thDelayReason: '延迟原因'
+  },
+  ja: {
+    title: 'AS状況管理',
+    headerTitle: 'AS状況管理',
+    userInfo: 'ユーザー:',
+    logout: 'ログアウト',
+    connStatus: '接続状態: 確認中...',
+    manager: '担当者',
+    owner: '船主',
+    managerList: '担当者リスト',
+    userManage: 'ユーザー管理',
+    aiConfig: 'AI設定',
+    apiConfig: 'API設定',
+    addRow: '行追加',
+    deleteRow: '選択行削除',
+    save: '保存',
+    downloadExcel: 'Excelダウンロード',
+    uploadExcel: 'Excelアップロード',
+    uploadStatus: 'ステータスアップロード',
+    history: '履歴',
+    clearHistory: '履歴をクリア',
+    ownerSummary: '船主別AI要約',
+    apiRefreshAll: 'API全更新',
+    loadAll: '全表示',
+    thProject: '工番',
+    thConstruction: '工事',
+    thIMO: 'IMO NO.',
+    thName: '名前',
+    thOwner: '船主',
+    thManager: '担当',
+    thApply: '反映',
+    thHull: '船殻番号',
+    thShipName: '船名',
+    thRepMail: '代表メール',
+    thShipType: '船型',
+    thScale: '規模',
+    thCategory: '区分',
+    thShipOwner: '船主',
+    thMajor: '主要船社',
+    thGroup: 'グループ',
+    thShipyard: '造船所',
+    thContract: '契約',
+    thAsType: 'AS区分',
+    thDelivery: '引き渡し',
+    thWarranty: '保証終了日',
+    thPrevManager: '前担当',
+    thManager2: '担当',
+    thStatus: '現状',
+    thTranslation: '翻訳',
+    thTranslateBtn: '翻訳',
+    thAsDate: 'AS受領日',
+    thTechEnd: '技術完了日',
+    thElapsed: '経過日',
+    thNormalDelay: '通常遅延',
+    thDelayReason: '遅延理由'
+  }
+};
 
 // 경로 정의
 const asPath = 'as-service/data';
@@ -87,6 +327,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 정렬 화살표 스타일 추가
   addSortIndicatorStyles();
+
+  // 기본 언어 적용
+  switchLanguage(currentLang);
 });
 
 // 모든 이벤트 리스너 등록 함수 - 성능 개선을 위해 일괄 처리
@@ -104,6 +347,11 @@ function registerEventListeners() {
   document.getElementById('aiConfigBtn').addEventListener('click', openAiConfigModal);
   document.getElementById('saveAiConfigBtn').addEventListener('click', saveAiConfig);
   document.getElementById('ownerAISummaryBtn').addEventListener('click', openOwnerAIModal);
+
+  // 언어 변경
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchLanguage(btn.dataset.lang));
+  });
   
   // API 설정 관련
   document.getElementById('apiConfigBtn').addEventListener('click', openApiConfigModal);
@@ -1364,6 +1612,25 @@ function createTableRow(row, counts) {
   tr.appendChild(makeCell(row.prevManager, 'prevManager'));
   tr.appendChild(makeCell(row.manager, 'manager'));
   tr.appendChild(makeCell(row.현황, '현황'));
+
+  // 번역 결과 표시 셀
+  const transTd = document.createElement('td');
+  const transInput = document.createElement('input');
+  transInput.type = 'text';
+  transInput.value = row.translation || '';
+  transInput.readOnly = true;
+  transInput.style.width = '95%';
+  transInput.dataset.uid = row.uid;
+  transTd.appendChild(transInput);
+  tr.appendChild(transTd);
+
+  // 번역 버튼
+  const transBtnTd = document.createElement('td');
+  const transBtn = document.createElement('button');
+  transBtn.textContent = '번역';
+  transBtn.addEventListener('click', () => translateStatus(row.uid));
+  transBtnTd.appendChild(transBtn);
+  tr.appendChild(transBtnTd);
 
   // (1) AI 요약 버튼 (단일 행)
   const aiTd = document.createElement('td');
@@ -2961,6 +3228,50 @@ async function openOwnerAIModal() {
   } catch (err) {
     console.error("선사별 AI 요약 오류:", err);
     alert("선사별 AI 요약 처리 중 오류가 발생했습니다.");
+  } finally {
+    closeAiProgressModal();
+  }
+}
+
+// 언어 전환
+function switchLanguage(lang) {
+  currentLang = lang;
+  document.documentElement.lang = lang;
+  const dict = i18n[lang] || {};
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const text = dict[key];
+    if (!text) return;
+    if (el.childElementCount === 0) {
+      el.textContent = text;
+    } else {
+      let node = Array.from(el.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+      if (node) {
+        node.textContent = text + ' ';
+      } else {
+        el.insertBefore(document.createTextNode(text + ' '), el.firstChild);
+      }
+    }
+  });
+}
+
+// (4) 현황 번역
+async function translateStatus(uid) {
+  const row = asData.find(r => r.uid === uid);
+  if (!row) return;
+  const langNameMap = { ko: '한국어', en: '영어', zh: '중국어', ja: '일본어' };
+  const target = langNameMap[currentLang] || '영어';
+  const prompt = `다음 문장을 ${target}로 번역해주세요:\n\n${row.현황}`;
+
+  showAiProgressModal();
+  clearAiProgressText();
+  try {
+    const translated = await callAiForSummary(prompt);
+    row.translation = translated || '';
+    renderTable(true);
+  } catch (err) {
+    console.error('번역 오류:', err);
+    alert('번역 중 오류가 발생했습니다.');
   } finally {
     closeAiProgressModal();
   }
