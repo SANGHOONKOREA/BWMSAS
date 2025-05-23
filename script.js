@@ -40,6 +40,7 @@ const auth = firebase.auth();
 // 페이지 로딩 성능 향상을 위한 캐시 및 지연 로딩 변수
 let asData = [];
 let currentMode = 'manager';  // 초기: 담당자
+let currentLang = 'ko';       // 기본 언어
 let sortField = '';
 let sortAsc = true;
 let adminAuthorized = false;  // 관리자 비번 확인용
@@ -50,6 +51,275 @@ let dataChanged = false;      // 데이터 변경 여부 추적
 let lastFilterState = {}; // 마지막 필터 상태
 let dataLoaded = false; // 데이터 로드 여부
 let pendingRowUpdates = new Map(); // 업데이트 대기 중인 행
+
+// 다국어 매핑
+const i18n = {
+  ko: {
+    title: 'AS 현황 관리 (통합 + AI 요약)',
+    headerTitle: 'AS 현황 관리',
+    userInfo: '사용자:',
+    logout: '로그아웃',
+    connStatus: '연결 상태: 확인 중...',
+    manager: '담당자',
+    owner: '선주사',
+    managerList: '담당자 목록',
+    userManage: '사용자 관리',
+    aiConfig: 'AI 설정 관리',
+    apiConfig: 'API 설정 관리',
+    addRow: '행 추가',
+    deleteRow: '선택 행 삭제',
+    save: '저장',
+    downloadExcel: '엑셀 다운로드',
+    uploadExcel: '엑셀 업로드',
+    uploadStatus: 'AS 현황 업로드',
+    history: '히스토리 조회',
+    clearHistory: '히스토리 전체 삭제',
+    ownerSummary: '선사별 AI 요약',
+    apiRefreshAll: 'API 전체 반영',
+    loadAll: '전체조회',
+    normalA: '정상A',
+    normalB: '정상B',
+    paidNormal: '유상정상',
+    partial: '부분동작',
+    notWorking: '동작불가',
+    fIMO: 'IMO NO.',
+    fHull: 'HULL NO.',
+    fShipName: 'SHIPNAME',
+    fShipOwner: 'SHIPOWNER',
+    fMajor: '주요선사',
+    fRepMail: '호선 대표메일',
+    fGroup: '그룹',
+    fAsType: 'AS 구분',
+    fManager: '현 담당',
+    fActive: '동작여부',
+    thProject: '공번',
+    thConstruction: '공사',
+    thIMO: 'IMO NO.',
+    thName: 'NAME',
+    thOwner: 'OWNER',
+    thManager: 'MANAGER',
+    thApply: '반영',
+    thHull: 'HULL NO.',
+    thShipName: 'SHIPNAME',
+    thRepMail: '호선 대표메일',
+    thShipType: 'SHIP TYPE',
+    thScale: 'SCALE',
+    thCategory: '구분',
+    thShipOwner: 'SHIPOWNER',
+    thMajor: '주요선사',
+    thGroup: '그룹',
+    thShipyard: 'SHIPYARD',
+    thContract: '계약',
+    thAsType: 'AS 구분',
+    thDelivery: '인도일',
+    thWarranty: '보증종료일',
+    thPrevManager: '전 담당',
+    thManager2: '현 담당',
+    thStatus: '현황',
+    thTranslation: '번역',
+    thTranslateBtn: '번역',
+    thAsDate: 'AS접수일자',
+    thTechEnd: '기술적종료일',
+    thElapsed: '경과일',
+    thNormalDelay: '정상지연',
+    thDelayReason: '지연 사유'
+  },
+  en: {
+    title: 'AS Status Management',
+    headerTitle: 'AS Status Management',
+    userInfo: 'User:',
+    logout: 'Logout',
+    connStatus: 'Connection: checking...',
+    manager: 'Manager',
+    owner: 'Owner',
+    managerList: 'Manager List',
+    userManage: 'User Manage',
+    aiConfig: 'AI Config',
+    apiConfig: 'API Config',
+    addRow: 'Add Row',
+    deleteRow: 'Delete Selected',
+    save: 'Save',
+    downloadExcel: 'Download Excel',
+    uploadExcel: 'Upload Excel',
+    uploadStatus: 'Upload Status',
+    history: 'History',
+    clearHistory: 'Clear History',
+    ownerSummary: 'Owner AI Summary',
+    apiRefreshAll: 'API Refresh All',
+    loadAll: 'Load All',
+    thProject: 'Project',
+    thConstruction: 'Const',
+    thIMO: 'IMO NO.',
+    thName: 'Name',
+    thOwner: 'Owner',
+    thManager: 'Manager',
+    thApply: 'Apply',
+    thHull: 'Hull No.',
+    thShipName: 'Ship Name',
+    thRepMail: 'Rep. Mail',
+    thShipType: 'Ship Type',
+    thScale: 'Scale',
+    thCategory: 'Category',
+    thShipOwner: 'Shipowner',
+    thMajor: 'Major',
+    thGroup: 'Group',
+    thShipyard: 'Shipyard',
+    thContract: 'Contract',
+    thAsType: 'AS Type',
+    thDelivery: 'Delivery',
+    thWarranty: 'Warranty',
+    thPrevManager: 'Prev Mgr',
+    thManager2: 'Manager',
+    thStatus: 'Status',
+    thTranslation: 'Translation',
+    thTranslateBtn: 'Translate',
+    thAsDate: 'AS Date',
+    thTechEnd: 'Tech End',
+    thElapsed: 'Elapsed',
+    thNormalDelay: 'Delay OK',
+    thDelayReason: 'Reason'
+  },
+  zh: {
+    title: 'AS\u73b0\u72b6\u7ba1\u7406',
+    headerTitle: 'AS\u73b0\u72b6\u7ba1\u7406',
+    userInfo: '\u7528\u6237:',
+    logout: '\u767b\u51fa',
+    connStatus: '\u8fde\u63a5\u72b6\u6001: \u68c0\u67e5\u4e2d...',
+    manager: '\u8d1f\u8d23\u4eba',
+    owner: '\u8239\u4e1c',
+    managerList: '\u8d1f\u8d23\u4eba\u5217\u8868',
+    userManage: '\u7528\u6237\u7ba1\u7406',
+    aiConfig: 'AI\u8bbe\u7f6e\u7ba1\u7406',
+    apiConfig: 'API\u8bbe\u7f6e\u7ba1\u7406',
+    addRow: '\u6dfb\u52a0\u884c',
+    deleteRow: '\u5220\u9664\u9009\u4e2d',
+    save: '\u4fdd\u5b58',
+    downloadExcel: '\u4e0b\u8f7dExcel',
+    uploadExcel: '\u4e0a\u4f20Excel',
+    uploadStatus: 'AS\u73b0\u72b6\u4e0a\u4f20',
+    history: '\u5386\u53f2',
+    clearHistory: '\u6e05\u9664\u6240\u6709\u5386\u53f2',
+    ownerSummary: '\u8239\u4e1cAI\u6458\u8981',
+    apiRefreshAll: 'API\u5168\u90e8\u5e94\u7528',
+    loadAll: '\u5168\u90e8\u67e5\u770b',
+    normalA: '\u6b63\u5e38A',
+    normalB: '\u6b63\u5e38B',
+    paidNormal: '\u6536\u8d39\u6b63\u5e38',
+    partial: '\u90e8\u5206\u8fd0\u4f5c',
+    notWorking: '\u65e0\u6cd5\u8fd0\u4f5c',
+    fIMO: 'IMO NO.',
+    fHull: 'HULL NO.',
+    fShipName: '\u8239\u540d',
+    fShipOwner: '\u8239\u4e1c',
+    fMajor: '\u4e3b\u8981\u8239\u4e1c',
+    fRepMail: '\u8239\u4ee3\u8868\u90ae\u7bb1',
+    fGroup: '\u7ec4',
+    fAsType: 'AS\u5206\u7c7b',
+    fManager: '\u73b0\u8d1f\u8d23\u4eba',
+    fActive: '\u8fd0\u4f5c\u72b6\u6001',
+    thProject: '\u5de5\u7f16',
+    thConstruction: '\u5de5\u7a0b',
+    thIMO: 'IMO NO.',
+    thName: 'NAME',
+    thOwner: 'OWNER',
+    thManager: 'MANAGER',
+    thApply: '\u5e94\u7528',
+    thHull: 'HULL NO.',
+    thShipName: '\u8239\u540d',
+    thRepMail: '\u8239\u4ee3\u8868\u90ae\u7bb1',
+    thShipType: '\u8239\u578b',
+    thScale: '\u89c4\u6a21',
+    thCategory: '\u7c7b\u522b',
+    thShipOwner: '\u8239\u4e1c',
+    thMajor: '\u4e3b\u8981\u8239\u4e1c',
+    thGroup: '\u7ec4',
+    thShipyard: '\u8239\u5382',
+    thContract: '\u5408\u540c',
+    thAsType: 'AS\u5206\u7c7b',
+    thDelivery: '\u4ea4\u4ed8\u65e5',
+    thWarranty: '\u4fdd\u4fee\u622a\u6b62',
+    thPrevManager: '\u524d\u8d1f\u8d23\u4eba',
+    thManager2: '\u73b0\u8d1f\u8d23\u4eba',
+    thStatus: '\u73b0\u72b6',
+    thTranslation: '\u7ffb\u8bd1',
+    thTranslateBtn: '\u7ffb\u8bd1',
+    thAsDate: 'AS\u63a5\u6536\u65e5',
+    thTechEnd: '\u6280\u672f\u7ed3\u675f\u65e5',
+    thElapsed: '\u7ecf\u8fc7\u65e5\u6570',
+    thNormalDelay: '\u6b63\u5e38\u5ef6\u8fdf',
+    thDelayReason: '\u5ef6\u8fdf\u539f\u56e0'
+  },
+  ja: {
+    title: 'AS\u72b6\u6cc1\u7ba1\u7406',
+    headerTitle: 'AS\u72b6\u6cc1\u7ba1\u7406',
+    userInfo: '\u30e6\u30fc\u30b6\u30fc:',
+    logout: '\u30ed\u30b0\u30a2\u30a6\u30c8',
+    connStatus: '\u63a5\u7d9a\u72b6\u614b: \u78ba\u8a8d\u4e2d...',
+    manager: '\u62bd\u7ba1\u8005',
+    owner: '\u8239\u4e3b',
+    managerList: '\u62bd\u7ba1\u8005\u30ea\u30b9\u30c8',
+    userManage: '\u30e6\u30fc\u30b6\u30fc\u7ba1\u7406',
+    aiConfig: 'AI\u8a2d\u5b9a\u7ba1\u7406',
+    apiConfig: 'API\u8a2d\u5b9a\u7ba1\u7406',
+    addRow: '\u884c\u8ffd\u52a0',
+    deleteRow: '\u9078\u629e\u884c\u524a\u9664',
+    save: '\u4fdd\u5b58',
+    downloadExcel: 'Excel\u30c0\u30a6\u30f3\u30ed\u30fc\u30c9',
+    uploadExcel: 'Excel\u30a2\u30c3\u30d7\u30ed\u30fc\u30c9',
+    uploadStatus: 'AS\u72b6\u6cc1\u30a2\u30c3\u30d7\u30ed\u30fc\u30c9',
+    history: '\u5c65\u6b74',
+    clearHistory: '\u5c65\u6b74\u5168\u524a\u9664',
+    ownerSummary: '\u8239\u4e3bAI\u6982\u8981',
+    apiRefreshAll: 'API\u5168\u53cd\u6620',
+    loadAll: '\u5168\u4f53\u8868\u793a',
+    normalA: '\u6b63\u5e38A',
+    normalB: '\u6b63\u5e38B',
+    paidNormal: '\u6709\u511f\u6b63\u5e38',
+    partial: '\u90e8\u5206\u52d5\u4f5c',
+    notWorking: '\u52d5\u4f5c\u4e0d\u53ef',
+    fIMO: 'IMO NO.',
+    fHull: 'HULL NO.',
+    fShipName: '\u8239\u540d',
+    fShipOwner: '\u8239\u4e3b',
+    fMajor: '\u4e3b\u8981\u8239\u4e3b',
+    fRepMail: '\u8239\u4ee3\u8868\u30e1\u30fc\u30eb',
+    fGroup: '\u30b0\u30eb\u30fc\u30d7',
+    fAsType: 'AS\u533a\u5206',
+    fManager: '\u73fe\u62bd\u7ba1\u8005',
+    fActive: '\u52d5\u4f5c\u72b6\u614b',
+    thProject: '\u5de5\u756a',
+    thConstruction: '\u5de5\u4e8b',
+    thIMO: 'IMO NO.',
+    thName: 'NAME',
+    thOwner: 'OWNER',
+    thManager: 'MANAGER',
+    thApply: '\u53cd\u6620',
+    thHull: 'HULL NO.',
+    thShipName: '\u8239\u540d',
+    thRepMail: '\u8239\u4ee3\u8868\u30e1\u30fc\u30eb',
+    thShipType: '\u8239\u7a2e',
+    thScale: '\u898f\u6a21',
+    thCategory: '\u533a\u5206',
+    thShipOwner: '\u8239\u4e3b',
+    thMajor: '\u4e3b\u8981\u8239\u4e3b',
+    thGroup: '\u30b0\u30eb\u30fc\u30d7',
+    thShipyard: '\u9020\u8239\u6240',
+    thContract: '\u5951\u7d04',
+    thAsType: 'AS\u533a\u5206',
+    thDelivery: '\u5f15\u6e21\u65e5',
+    thWarranty: '\u4fdd\u8a3b\u7d42\u4e86\u65e5',
+    thPrevManager: '\u524d\u62bd\u7ba1\u8005',
+    thManager2: '\u73fe\u62bd\u7ba1\u8005',
+    thStatus: '\u72b6\u6cc1',
+    thTranslation: '\u7ffb\u8a33',
+    thTranslateBtn: '\u7ffb\u8a33',
+    thAsDate: 'AS\u53d7\u4ed8\u65e5',
+    thTechEnd: '\u6280\u8853\u7d42\u4e86\u65e5',
+    thElapsed: '\u7d4c\u904e\u65e5\u6570',
+    thNormalDelay: '\u6b63\u5e38\u9045\u5ef6',
+    thDelayReason: '\u9045\u5ef6\u7406\u7531'
+  }
+};
 
 // 경로 정의
 const asPath = 'as-service/data';
@@ -87,6 +357,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 정렬 화살표 스타일 추가
   addSortIndicatorStyles();
+
+  // 기본 언어 적용
+  switchLanguage(currentLang);
 });
 
 // 모든 이벤트 리스너 등록 함수 - 성능 개선을 위해 일괄 처리
@@ -104,6 +377,11 @@ function registerEventListeners() {
   document.getElementById('aiConfigBtn').addEventListener('click', openAiConfigModal);
   document.getElementById('saveAiConfigBtn').addEventListener('click', saveAiConfig);
   document.getElementById('ownerAISummaryBtn').addEventListener('click', openOwnerAIModal);
+
+  // 언어 변경
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchLanguage(btn.dataset.lang));
+  });
   
   // API 설정 관련
   document.getElementById('apiConfigBtn').addEventListener('click', openApiConfigModal);
@@ -1364,6 +1642,25 @@ function createTableRow(row, counts) {
   tr.appendChild(makeCell(row.prevManager, 'prevManager'));
   tr.appendChild(makeCell(row.manager, 'manager'));
   tr.appendChild(makeCell(row.현황, '현황'));
+
+  // 번역 결과 표시 셀
+  const transTd = document.createElement('td');
+  const transInput = document.createElement('input');
+  transInput.type = 'text';
+  transInput.value = row.translation || '';
+  transInput.readOnly = true;
+  transInput.style.width = '95%';
+  transInput.dataset.uid = row.uid;
+  transTd.appendChild(transInput);
+  tr.appendChild(transTd);
+
+  // 번역 버튼
+  const transBtnTd = document.createElement('td');
+  const transBtn = document.createElement('button');
+  transBtn.textContent = '번역';
+  transBtn.addEventListener('click', () => translateStatus(row.uid));
+  transBtnTd.appendChild(transBtn);
+  tr.appendChild(transBtnTd);
 
   // (1) AI 요약 버튼 (단일 행)
   const aiTd = document.createElement('td');
@@ -2961,6 +3258,46 @@ async function openOwnerAIModal() {
   } catch (err) {
     console.error("선사별 AI 요약 오류:", err);
     alert("선사별 AI 요약 처리 중 오류가 발생했습니다.");
+  } finally {
+    closeAiProgressModal();
+  }
+}
+
+// 언어 전환
+function switchLanguage(lang) {
+  currentLang = lang;
+  document.documentElement.lang = lang;
+  const dict = i18n[lang] || {};
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const text = dict[key];
+    if (!text) return;
+    const textNode = Array.from(el.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+    if (textNode) {
+      textNode.nodeValue = text;
+    } else {
+      el.textContent = text;
+    }
+  });
+}
+
+// (4) 현황 번역
+async function translateStatus(uid) {
+  const row = asData.find(r => r.uid === uid);
+  if (!row) return;
+  const langNameMap = { ko: '한국어', en: '영어', zh: '중국어', ja: '일본어' };
+  const target = langNameMap[currentLang] || '영어';
+  const prompt = `다음 문장을 ${target}로 번역해주세요:\n\n${row.현황}`;
+
+  showAiProgressModal();
+  clearAiProgressText();
+  try {
+    const translated = await callAiForSummary(prompt);
+    row.translation = translated || '';
+    renderTable(true);
+  } catch (err) {
+    console.error('번역 오류:', err);
+    alert('번역 중 오류가 발생했습니다.');
   } finally {
     closeAiProgressModal();
   }
