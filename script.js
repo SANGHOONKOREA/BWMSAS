@@ -20,7 +20,9 @@ function addSortIndicatorStyles() {
     }
   `;
   document.head.appendChild(styleElem);
-}/** ===============================
+}
+
+/** ===============================
  *  Firebase 초기화
  * ===============================**/
 const firebaseConfig = {
@@ -47,9 +49,16 @@ let userData = [];
 let isTableRendering = false; // 테이블 렌더링 중복 방지
 let tableRenderTimeout = null;
 let dataChanged = false;      // 데이터 변경 여부 추적
-let lastFilterState = {}; // 마지막 필터 상태
 let dataLoaded = false; // 데이터 로드 여부
 let pendingRowUpdates = new Map(); // 업데이트 대기 중인 행
+
+// === 성능 개선을 위한 추가 변수 ===
+let currentFilterState = {}; // 필터 상태 저장
+let lastRenderedData = []; // 마지막으로 렌더링된 데이터
+let isFilterActive = false; // 필터 활성화 여부
+
+// 전역 변수 섹션에 추가
+let modifiedRows = new Set();
 
 // 경로 정의
 const asPath = 'as-service/data';
@@ -75,9 +84,411 @@ let g_apiConfig = {
   baseUrl: "https://api.vesselfinder.com/masterdata"
 };
 
-/** ==================================
+// 현재 선택된 언어
+let currentLanguage = 'ko';
+
+// 언어별 텍스트 사전
+const translations = {
+  // 한국어 (기본)
+  ko: {
+    // 헤더 및 버튼
+    "AS 현황 관리": "AS 현황 관리",
+    "사용자": "사용자",
+    "로그아웃": "로그아웃",
+    "연결 상태": "연결 상태",
+    "확인 중": "확인 중",
+    "행 추가": "행 추가",
+    "선택 행 삭제": "선택 행 삭제",
+    "저장": "저장",
+    "엑셀 다운로드": "엑셀 다운로드",
+    "엑셀 업로드": "엑셀 업로드",
+    "AS 현황 업로드": "AS 현황 업로드",
+    "히스토리 조회": "히스토리 조회",
+    "히스토리 전체 삭제": "히스토리 전체 삭제",
+    "현황 번역": "현황 번역",
+    "선사별 AI 요약": "선사별 AI 요약",
+    "API 전체 반영": "API 전체 반영",
+    "전체조회": "전체조회",
+    "전체": "전체",
+    "AS진행": "AS진행",
+    "담당자": "담당자",
+    "선주사": "선주사",
+    "사용자 관리": "사용자 관리",
+    "AI 설정 관리": "AI 설정 관리",
+    "API 설정 관리": "API 설정 관리",
+    "연결됨": "연결됨",
+    
+    // 상태 카드
+    "정상A": "정상A",
+    "정상B": "정상B",
+    "유상정상": "유상정상",
+    "부분동작": "부분동작",
+    "동작불가": "동작불가",
+    
+    // 필터 레이블
+    "IMO NO.": "IMO NO.",
+    "HULL NO.": "HULL NO.",
+    "SHIPNAME": "SHIPNAME",
+    "SHIPOWNER": "SHIPOWNER",
+    "주요선사": "주요선사",
+    "호선 대표메일": "호선 대표메일",
+    "그룹": "그룹",
+    "AS 구분": "AS 구분",
+    "현 담당": "현 담당",
+    "동작여부": "동작여부",
+    "전체": "전체",
+    "무상": "무상",
+    "유상": "유상",
+    "위탁": "위탁",
+    
+    // 테이블 헤더
+    "공번": "공번",
+    "공사": "공사",
+    "NAME": "NAME",
+    "OWNER": "OWNER",
+    "MANAGER": "MANAGER",
+    "반영": "반영",
+    "SHIP TYPE": "SHIP TYPE",
+    "SCALE": "SCALE",
+    "구분": "구분",
+    "주요선사": "주요선사",
+    "그룹": "그룹",
+    "SHIPYARD": "SHIPYARD",
+    "계약": "계약",
+    "인도일": "인도일",
+    "보증종료일": "보증종료일",
+    "전 담당": "전 담당",
+    "현 담당": "현 담당",
+    "현황": "현황",
+    "현황번역": "현황 번역",
+    "AI 요약": "AI 요약",
+    "조치계획": "조치계획",
+    "접수내용": "접수내용",
+    "조치결과": "조치결과",
+    "AS접수일자": "AS접수일자",
+    "기술적종료일": "기술적종료일",
+    "경과일": "경과일",
+    "정상지연": "정상지연",
+    "지연 사유": "지연 사유",
+    
+    // 모달 제목
+    "변경 이력": "변경 이력",
+    "사용자 관리": "사용자 관리",
+    "API 설정 관리": "API 설정 관리",
+    "엑셀 업로드 방식 선택": "엑셀 업로드 방식 선택",
+    "전체 내용": "전체 내용",
+    "선사별 접수내용/조치결과 요약": "선사별 접수내용/조치결과 요약",
+    "AI 설정 관리": "AI 설정 관리",
+    "AI 요약 진행 상황": "AI 요약 진행 상황",
+    "API 데이터 가져오기": "API 데이터 가져오기",
+    "비밀번호 초기화": "비밀번호 초기화",
+    "비밀번호 변경": "비밀번호 변경",
+    "반영": "반영",
+    "SHIPYARD": "SHIPYARD",
+    "경과일": "경과일"
+  },
+  
+  // 영어
+  en: {
+    // 헤더 및 버튼
+    "AS 현황 관리": "AS Status Management",
+    "사용자": "User",
+    "로그아웃": "Logout",
+    "연결 상태": "Connection Status",
+    "확인 중": "Checking",
+    "행 추가": "Add Row",
+    "선택 행 삭제": "Delete Selected",
+    "저장": "Save",
+    "엑셀 다운로드": "Excel Download",
+    "엑셀 업로드": "Excel Upload",
+    "AS 현황 업로드": "AS Status Upload",
+    "히스토리 조회": "View History",
+    "히스토리 전체 삭제": "Clear All History",
+    "현황 번역": "Translate Status",
+    "선사별 AI 요약": "Owner AI Summary",
+    "API 전체 반영": "API Refresh All",
+    "전체조회": "View All",
+    "전체": "All",
+    "AS진행": "AS In Progress",
+    "담당자": "Manager",
+    "선주사": "Owner",
+    "사용자 관리": "User Management",
+    "AI 설정 관리": "AI Configuration",
+    "API 설정 관리": "API Configuration",
+    "연결됨": "Connected",
+    
+    // 상태 카드
+    "정상A": "Normal A",
+    "정상B": "Normal B",
+    "유상정상": "Paid Normal",
+    "부분동작": "Partial Operation",
+    "동작불가": "Inoperable",
+    
+    // 필터 레이블
+    "IMO NO.": "IMO NO.",
+    "HULL NO.": "HULL NO.",
+    "SHIPNAME": "SHIPNAME",
+    "SHIPOWNER": "SHIPOWNER",
+    "주요선사": "Major Shipping",
+    "호선 대표메일": "Vessel Email",
+    "그룹": "Group",
+    "AS 구분": "AS Type",
+    "현 담당": "Current Manager",
+    "동작여부": "Operation Status",
+    "전체": "All",
+    "무상": "Free",
+    "유상": "Paid",
+    "위탁": "Consignment",
+    
+    // 테이블 헤더
+    "공번": "Project No.",
+    "공사": "Work",
+    "NAME": "NAME",
+    "OWNER": "OWNER",
+    "MANAGER": "MANAGER",
+    "반영": "Apply",
+    "SHIP TYPE": "SHIP TYPE",
+    "SCALE": "SCALE",
+    "구분": "Category",
+    "주요선사": "Major Shipping",
+    "그룹": "Group",
+    "SHIPYARD": "SHIPYARD",
+    "계약": "Contract",
+    "인도일": "Delivery Date",
+    "보증종료일": "Warranty End",
+    "전 담당": "Previous Manager",
+    "현 담당": "Current Manager",
+    "현황": "Status",
+    "현황번역": "Status Translation",
+    "AI 요약": "AI Summary",
+    "조치계획": "Action Plan",
+    "접수내용": "Receipt Details",
+    "조치결과": "Action Results",
+    "AS접수일자": "AS Receipt Date",
+    "기술적종료일": "Technical End Date",
+    "경과일": "Elapsed Days",
+    "정상지연": "Normal Delay",
+    "지연 사유": "Delay Reason",
+    
+    // 모달 제목
+    "변경 이력": "Change History",
+    "사용자 관리": "User Management",
+    "API 설정 관리": "API Configuration",
+    "엑셀 업로드 방식 선택": "Excel Upload Method",
+    "전체 내용": "Full Content",
+    "선사별 접수내용/조치결과 요약": "Owner-based Summary",
+    "AI 설정 관리": "AI Configuration",
+    "AI 요약 진행 상황": "AI Summary Progress",
+    "API 데이터 가져오기": "API Data Retrieval",
+    "비밀번호 초기화": "Reset Password",
+    "비밀번호 변경": "Change Password",
+    "반영": "Apply",
+    "SHIPYARD": "SHIPYARD",
+    "경과일": "Elapsed Days"
+  },
+  
+  // 중국어
+  zh: {
+    // 헤더 및 버튼
+    "AS 현황 관리": "AS状态管理",
+    "사용자": "用户",
+    "로그아웃": "登出",
+    "연결 상태": "连接状态",
+    "확인 중": "确认中",
+    "행 추가": "添加行",
+    "선택 행 삭제": "删除所选",
+    "저장": "保存",
+    "엑셀 다운로드": "下载Excel",
+    "엑셀 업로드": "上传Excel",
+    "AS 현황 업로드": "上传AS状态",
+    "히스토리 조회": "查看历史",
+    "히스토리 전체 삭제": "清除所有历史",
+    "현황 번역": "翻译状态",
+    "선사별 AI 요약": "船东AI摘要",
+    "API 전체 반영": "API全部更新",
+    "전체조회": "查看全部",
+    "전체": "全部",
+    "AS진행": "AS进行中",
+    "담당자": "负责人",
+    "선주사": "船东",
+    "사용자 관리": "用户管理",
+    "AI 설정 관리": "AI设置管理",
+    "API 설정 관리": "API设置管理",
+    "연결됨": "已连接",
+    
+    // 상태 카드
+    "정상A": "正常A",
+    "정상B": "正常B",
+    "유상정상": "有偿正常",
+    "부분동작": "部分运行",
+    "동작불가": "无法运行",
+    
+    // 필터 레이블
+    "IMO NO.": "IMO号码",
+    "HULL NO.": "船体号码",
+    "SHIPNAME": "船名",
+    "SHIPOWNER": "船东",
+    "주요선사": "主要船公司",
+    "호선 대표메일": "船舶代表邮箱",
+    "그룹": "组别",
+    "AS 구분": "AS类型",
+    "현 담당": "当前负责人",
+    "동작여부": "运行状态",
+    "전체": "全部",
+    "무상": "免费",
+    "유상": "有偿",
+    "위탁": "委托",
+    
+    // 테이블 헤더
+    "공번": "项目编号",
+    "공사": "工程",
+    "NAME": "名称",
+    "OWNER": "所有者",
+    "MANAGER": "管理者",
+    "반영": "应用",
+    "SHIP TYPE": "船舶类型",
+    "SCALE": "规模",
+    "구분": "类别",
+    "주요선사": "主要船公司",
+    "그룹": "组别",
+    "SHIPYARD": "造船厂",
+    "계약": "合同",
+    "인도일": "交付日期",
+    "보증종료일": "保修结束日",
+    "전 담당": "前任负责人",
+    "현 담당": "当前负责人",
+    "현황": "状态",
+    "현황번역": "状态翻译",
+    "AI 요약": "AI摘要",
+    "조치계획": "措施计划",
+    "접수내용": "接收内容",
+    "조치결과": "措施结果",
+    "AS접수일자": "AS接收日期",
+    "기술적종료일": "技术终止日期",
+    "경과일": "经过天数",
+    "정상지연": "正常延迟",
+    "지연 사유": "延迟原因",
+    
+    // 모달 제목
+    "변경 이력": "变更历史",
+    "사용자 관리": "用户管理",
+    "API 설정 관리": "API设置管理",
+    "엑셀 업로드 방식 선택": "Excel上传方式选择",
+    "전체 내용": "全部内容",
+    "선사별 접수내용/조치결과 요약": "按船东分类的摘要",
+    "AI 설정 관리": "AI设置管理",
+    "AI 요약 진행 상황": "AI摘要进展",
+    "API 데이터 가져오기": "获取API数据",
+    "비밀번호 초기화": "重置密码",
+    "비밀번호 변경": "更改密码",
+    "반영": "应用",
+    "SHIPYARD": "造船厂",
+    "경과일": "经过天数"
+  },
+  
+  // 일본어
+  ja: {
+    // 헤더 및 버튼
+    "AS 현황 관리": "ASステータス管理",
+    "사용자": "ユーザー",
+    "로그아웃": "ログアウト",
+    "연결 상태": "接続状態",
+    "확인 중": "確認中",
+    "행 추가": "行追加",
+    "선택 행 삭제": "選択行削除",
+    "저장": "保存",
+    "엑셀 다운로드": "Excel ダウンロード",
+    "엑셀 업로드": "Excel アップロード",
+    "AS 현황 업로드": "ASステータスアップロード",
+    "히스토리 조회": "履歴表示",
+    "히스토리 전체 삭제": "履歴全削除",
+    "현황 번역": "ステータス翻訳",
+    "선사별 AI 요약": "船主AI要約",
+    "API 전체 반영": "API全体反映",
+    "전체조회": "全体表示",
+    "전체": "全体",
+    "AS진행": "AS進行中",
+    "담당자": "担当者",
+    "선주사": "船主",
+    "사용자 관리": "ユーザー管理",
+    "AI 설정 관리": "AI設定管理",
+    "API 설정 관리": "API設定管理",
+    "연결됨": "接続済み",
+    
+    // 상태 카드
+    "정상A": "正常A",
+    "정상B": "正常B",
+    "유상정상": "有償正常",
+    "부분동작": "部分動作",
+    "동작불가": "動作不可",
+    
+    // 필터 레이블
+    "IMO NO.": "IMO番号",
+    "HULL NO.": "船体番号",
+    "SHIPNAME": "船名",
+    "SHIPOWNER": "船主",
+    "주요선사": "主要船社",
+    "호선 대표메일": "船舶代表メール",
+    "그룹": "グループ",
+    "AS 구분": "AS区分",
+    "현 담당": "現担当者",
+    "동작여부": "動作状態",
+    "전체": "全体",
+    "무상": "無償",
+    "유상": "有償",
+    "위탁": "委託",
+    
+    // 테이블 헤더
+    "공번": "工番",
+    "공사": "工事",
+    "NAME": "名称",
+    "OWNER": "所有者",
+    "MANAGER": "管理者",
+    "반영": "反映",
+    "SHIP TYPE": "船舶タイプ",
+    "SCALE": "規模",
+    "구분": "区分",
+    "주요선사": "主要船社",
+    "그룹": "グループ",
+    "SHIPYARD": "造船所",
+    "계약": "契約",
+    "인도일": "引渡日",
+    "보증종료일": "保証終了日",
+    "전 담당": "前担当者",
+    "현 담당": "現担当者",
+    "현황": "状況",
+    "현황번역": "状況翻訳",
+    "AI 요약": "AI要約",
+    "조치계획": "措置計画",
+    "접수내용": "受付内容",
+    "조치결과": "措置結果",
+    "AS접수일자": "AS受付日",
+    "기술적종료일": "技術的終了日",
+    "경과일": "経過日数",
+    "정상지연": "正常遅延",
+    "지연 사유": "遅延理由",
+    
+    // 모달 제목
+    "변경 이력": "変更履歴",
+    "사용자 관리": "ユーザー管理",
+    "API 설정 관리": "API設定管理",
+    "엑셀 업로드 방식 선택": "Excelアップロード方式選択",
+    "전체 내용": "全体内容",
+    "선사별 접수내용/조치결과 요약": "船主別要約",
+    "AI 설정 관리": "AI設定管理",
+    "AI 요약 진행 상황": "AI要約進行状況",
+    "API 데이터 가져오기": "APIデータ取得",
+    "비밀번호 초기화": "パスワードリセット",
+    "비밀번호 변경": "パスワード変更",
+    "반영": "反映",
+    "SHIPYARD": "造船所",
+    "경과일": "経過日数"
+  }
+};
+
+/** ===============================
  *  초기화 및 이벤트 핸들러 등록
- * ===================================*/
+ * ===============================**/
 document.addEventListener('DOMContentLoaded', () => {
   // 모든 이벤트 리스너 등록
   registerEventListeners();
@@ -87,6 +498,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 정렬 화살표 스타일 추가
   addSortIndicatorStyles();
+  
+  // 언어 초기화
+  initializeLanguage();
 });
 
 // 모든 이벤트 리스너 등록 함수 - 성능 개선을 위해 일괄 처리
@@ -132,6 +546,9 @@ function registerEventListeners() {
   // 히스토리 관련
   document.getElementById('historyBtn').addEventListener('click', showHistoryModal);
   document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
+
+  // 번역 관련
+  document.getElementById('translateBtn').addEventListener('click', translateStatusField);
   
   // 비밀번호 찾기 관련
   document.getElementById('forgotPasswordLink').addEventListener('click', openForgotPasswordModal);
@@ -192,9 +609,17 @@ function registerEventListeners() {
   
   // 필터 변경 이벤트를 디바운스로 관리
   setupFilterDebounce();
+  
+  // 언어 선택 버튼 이벤트 리스너 등록
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const lang = this.getAttribute('data-lang');
+      changeLanguage(lang);
+    });
+  });
 }
 
-  // 필터 변경 이벤트에 디바운스 적용
+// 필터 변경 이벤트에 디바운스 적용 - 성능 개선
 function setupFilterDebounce() {
   const filters = ['filterIMO', 'filterHull', 'filterName', 'filterOwner', 'filterMajor', 'filterRepMail', 'filterGroup', 'filterAsType', 'filterManager', 'filterActive'];
   
@@ -214,8 +639,756 @@ function debounceRenderTable() {
     clearTimeout(tableRenderTimeout);
   }
   tableRenderTimeout = setTimeout(() => {
+    saveFilterState(); // 필터 상태 저장
     renderTable();
   }, 300); // 300ms 지연
+}
+
+// === 필터 상태 저장/복원 함수 추가 ===
+function saveFilterState() {
+  currentFilterState = {
+    imo: document.getElementById('filterIMO').value,
+    hull: document.getElementById('filterHull').value,
+    name: document.getElementById('filterName').value,
+    owner: document.getElementById('filterOwner').value,
+    major: document.getElementById('filterMajor').value,
+    repMail: document.getElementById('filterRepMail').value,
+    group: document.getElementById('filterGroup').value,
+    asType: document.getElementById('filterAsType').value,
+    manager: document.getElementById('filterManager').value,
+    active: document.getElementById('filterActive').value
+  };
+  
+  // 필터가 하나라도 있으면 필터 활성화
+  isFilterActive = Object.values(currentFilterState).some(val => val !== '');
+}
+
+function restoreFilterState() {
+  if (currentFilterState) {
+    document.getElementById('filterIMO').value = currentFilterState.imo || '';
+    document.getElementById('filterHull').value = currentFilterState.hull || '';
+    document.getElementById('filterName').value = currentFilterState.name || '';
+    document.getElementById('filterOwner').value = currentFilterState.owner || '';
+    document.getElementById('filterMajor').value = currentFilterState.major || '';
+    document.getElementById('filterRepMail').value = currentFilterState.repMail || '';
+    document.getElementById('filterGroup').value = currentFilterState.group || '';
+    document.getElementById('filterAsType').value = currentFilterState.asType || '';
+    document.getElementById('filterManager').value = currentFilterState.manager || '';
+    document.getElementById('filterActive').value = currentFilterState.active || '';
+  }
+}
+
+// renderTable 함수 내부, tbody 렌더링 직전에 추가
+function renderTableHeaders() {
+  const thead = document.querySelector('#asTable thead tr');
+  if (!thead) return;
+  
+  // 헤더 정의 (필드명과 기본 텍스트)
+  const headers = [
+    { field: null, text: '', isCheckbox: true },
+    { field: '공번', text: '공번' },
+    { field: '공사', text: '공사' },
+    { field: 'imo', text: 'IMO NO.' },
+    { field: 'api_name', text: 'NAME' },
+    { field: 'api_owner', text: 'OWNER' },
+    { field: 'api_manager', text: 'MANAGER' },
+    { field: null, text: '반영' },
+    { field: 'hull', text: 'HULL NO.' },
+    { field: 'shipName', text: 'SHIPNAME' },
+    { field: 'repMail', text: '호선 대표메일' },
+    { field: 'shipType', text: 'SHIP TYPE' },
+    { field: 'scale', text: 'SCALE' },
+    { field: '구분', text: '구분' },
+    { field: 'shipowner', text: 'SHIPOWNER' },
+    { field: 'major', text: '주요선사' },
+    { field: 'group', text: '그룹' },
+    { field: 'shipyard', text: 'SHIPYARD' },
+    { field: 'contract', text: '계약' },
+    { field: 'asType', text: 'AS 구분' },
+    { field: 'delivery', text: '인도일' },
+    { field: 'warranty', text: '보증종료일' },
+    { field: 'prevManager', text: '전 담당' },
+    { field: 'manager', text: '현 담당' },
+    { field: '현황', text: '현황' },
+{ field: '현황번역', text: '현황 번역' },
+    { field: null, text: 'AI 요약', isAI: true },
+    { field: '동작여부', text: '동작여부' },
+    { field: '조치계획', text: '조치계획' },
+    { field: '접수내용', text: '접수내용' },
+    { field: '조치결과', text: '조치결과' },
+    { field: null, text: 'AI 요약', isAI: true },
+    { field: 'AS접수일자', text: 'AS접수일자' },
+    { field: '기술적종료일', text: '기술적종료일' },
+    { field: '경과일', text: '경과일' },
+    { field: '정상지연', text: '정상지연' },
+    { field: '지연 사유', text: '지연 사유' }
+  ];
+  
+  // 기존 헤더 제거
+  thead.innerHTML = '';
+  
+  // 새 헤더 생성
+  headers.forEach(header => {
+    const th = document.createElement('th');
+    
+    if (header.isCheckbox) {
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.id = 'selectAll';
+      checkbox.addEventListener('change', toggleSelectAll);
+      th.appendChild(checkbox);
+    } else {
+      // 번역된 텍스트 가져오기
+      const translatedText = translations[currentLanguage][header.text] || header.text;
+      
+      if (header.field) {
+        th.setAttribute('data-field', header.field);
+        th.style.cursor = 'pointer';
+        
+        // 텍스트 노드 추가
+        const textNode = document.createTextNode(translatedText);
+        th.appendChild(textNode);
+        
+        // 정렬 표시기 추가 (현재 정렬된 필드인 경우)
+        if (sortField === header.field) {
+          const sortIndicator = document.createElement('span');
+          sortIndicator.className = 'sort-indicator';
+          sortIndicator.innerHTML = sortAsc ? ' &#9650;' : ' &#9660;';
+          th.appendChild(sortIndicator);
+        }
+      } else {
+        th.textContent = translatedText;
+      }
+      
+      // col-resizer 추가
+      const resizer = document.createElement('div');
+      resizer.className = 'col-resizer';
+      th.appendChild(resizer);
+    }
+    
+    thead.appendChild(th);
+  });
+  
+  // 정렬 표시기 복원
+  if (sortField) {
+    const sortedTh = document.querySelector(`th[data-field="${sortField}"]`);
+    if (sortedTh) {
+      const sortIndicator = document.createElement('span');
+      sortIndicator.className = 'sort-indicator';
+      sortIndicator.innerHTML = sortAsc ? ' &#9650;' : ' &#9660;';
+      sortedTh.appendChild(sortIndicator);
+    }
+  }
+}
+
+/** ==================================
+ *  언어 변경 및 번역 관련 기능
+ * ===================================*/
+// 언어 변경 함수 개선 - 필터 상태 유지
+function changeLanguage(lang) {
+  // 이미 같은 언어로 설정되어 있다면 종료
+  if (currentLanguage === lang) return;
+  
+  console.log(`언어 변경 요청: ${currentLanguage} → ${lang}`);
+  
+  // 필터 상태 저장
+  saveFilterState();
+  
+  // 현재 언어 업데이트
+  currentLanguage = lang;
+  
+  // 버튼 활성화 상태 업데이트
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    if (btn.getAttribute('data-lang') === lang) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+  
+  // 즉시 UI 언어 업데이트
+  updateUILanguage();
+  
+  // 테이블이 렌더링된 상태인지 확인
+  const tbody = document.getElementById('asBody');
+  if (tbody && tbody.children.length > 0) {
+    // 테이블이 이미 렌더링된 경우, 강제로 다시 렌더링
+    isTableRendering = false; // 렌더링 플래그 초기화
+    
+    // 필터 상태 복원
+    restoreFilterState();
+    
+// 현재 필터된 상태로 다시 렌더링
+if (isFilterActive) {
+  // 필터가 활성화되어 있으면 필터 적용된 상태로 렌더링
+  renderTable(false);
+} else if (lastRenderedData.length > 0) {
+  // 필터는 없지만 데이터가 표시되어 있었다면 전체 표시
+  renderTable(true);
+}
+  }
+  
+  // 사이드바 메뉴 업데이트
+  updateSidebarList();
+  
+  // 언어 변경 기록 저장
+  localStorage.setItem('selectedLanguage', lang);
+  
+  console.log(`언어가 ${lang}으로 변경되었습니다.`);
+}
+
+// updateUILanguage 함수 개선 - 모든 UI 요소를 포괄적으로 업데이트
+function updateUILanguage() {
+  const langData = translations[currentLanguage];
+  if (!langData) return;
+  
+  console.log(`UI 언어 업데이트: ${currentLanguage}`);
+  
+  // 1. 헤더 및 상단 요소 변경
+  const h1 = document.querySelector('.header h1');
+  if (h1) h1.textContent = langData["AS 현황 관리"] || "AS 현황 관리";
+  
+  // 사용자 정보 텍스트 변경
+  const userInfoText = langData["사용자"] || "사용자";
+  const userName = document.getElementById('currentUserName')?.textContent || "-";
+  const userInfoEl = document.getElementById('userInfo');
+  if (userInfoEl) {
+    userInfoEl.innerHTML = `${userInfoText}: <span id="currentUserName">${userName}</span>`;
+  }
+  
+  // 연결 상태 메시지
+  const connectionStatus = document.getElementById('connectionStatus');
+  if (connectionStatus) {
+    const statusText = connectionStatus.textContent;
+    const statusValue = statusText.includes(':') ? statusText.split(':')[1].trim() : "확인 중";
+    
+    // 상태값도 번역
+    let translatedStatus = statusValue;
+    if (statusValue === "확인 중" || statusValue === "Checking" || statusValue === "确认中" || statusValue === "確認中") {
+      translatedStatus = langData["확인 중"] || "확인 중";
+    } else if (statusValue === "Firebase 연결됨" || statusValue === "Firebase Connected") {
+      translatedStatus = "Firebase " + (langData["연결됨"] || "연결됨");
+    }
+    
+    connectionStatus.textContent = `${langData["연결 상태"] || "연결 상태"}: ${translatedStatus}`;
+  }
+  
+  // 2. 상태 카드 변경 - 역매핑 사용
+  const statusCards = {
+    '정상A': ['정상A', 'Normal A', '正常A', '正常A'],
+    '정상B': ['정상B', 'Normal B', '正常B', '正常B'],
+    '유상정상': ['유상정상', 'Paid Normal', '有偿正常', '有償正常'],
+    '부분동작': ['부분동작', 'Partial Operation', '部分运行', '部分動作'],
+    '동작불가': ['동작불가', 'Inoperable', '无法运行', '動作不可']
+  };
+  
+  document.querySelectorAll('.status-card h3').forEach(el => {
+    const currentText = el.textContent.trim();
+    for (const [koKey, variations] of Object.entries(statusCards)) {
+      if (variations.includes(currentText)) {
+        el.textContent = langData[koKey] || koKey;
+        break;
+      }
+    }
+  });
+  
+  // 3. 필터 레이블 변경 - 역매핑 사용
+  const labelMappings = {
+    'IMO NO.': ['IMO NO.', 'IMO NO.', 'IMO号码', 'IMO番号'],
+    'HULL NO.': ['HULL NO.', 'HULL NO.', '船体号码', '船体番号'],
+    'SHIPNAME': ['SHIPNAME', 'SHIPNAME', '船名', '船名'],
+    'SHIPOWNER': ['SHIPOWNER', 'SHIPOWNER', '船东', '船主'],
+    '주요선사': ['주요선사', 'Major Shipping', '主要船公司', '主要船社'],
+    '호선 대표메일': ['호선 대표메일', 'Vessel Email', '船舶代表邮箱', '船舶代表メール'],
+    '그룹': ['그룹', 'Group', '组别', 'グループ'],
+    'AS 구분': ['AS 구분', 'AS Type', 'AS类型', 'AS区分'],
+    '현 담당': ['현 담당', 'Current Manager', '当前负责人', '現担当者'],
+    '동작여부': ['동작여부', 'Operation Status', '运行状态', '動作状態']
+  };
+  
+  document.querySelectorAll('.filter-group label').forEach(el => {
+    const currentText = el.textContent.trim();
+    for (const [koKey, variations] of Object.entries(labelMappings)) {
+      if (variations.includes(currentText)) {
+        el.textContent = langData[koKey] || koKey;
+        break;
+      }
+    }
+  });
+  
+  // 4. 테이블 헤더 변경
+  if (document.querySelector('#asTable thead tr')) {
+    renderTableHeaders();
+  }
+
+  // 5. 모든 버튼을 한 번에 처리 - ID 우선, 그 다음 텍스트 매칭
+  const buttonMappings = {
+    // ID 기반 매핑
+    'loadBtn': '전체조회',
+    'addRowBtn': '행 추가',
+    'deleteRowBtn': '선택 행 삭제',
+    'saveBtn': '저장',
+    'downloadExcelBtn': '엑셀 다운로드',
+    'uploadExcelBtn': '엑셀 업로드',
+    'uploadAsStatusBtn': 'AS 현황 업로드',
+    'historyBtn': '히스토리 조회',
+    'clearHistoryBtn': '히스토리 전체 삭제',
+    'translateBtn': '현황 번역',
+    'ownerAISummaryBtn': '선사별 AI 요약',
+    'apiRefreshAllBtn': 'API 전체 반영',
+    'logoutBtn': '로그아웃',
+    'btnManager': '담당자',
+    'btnOwner': '선주사',
+    'userManageBtn': '사용자 관리',
+    'aiConfigBtn': 'AI 설정 관리',
+    'apiConfigBtn': 'API 설정 관리',
+    // 모달 버튼들 추가
+    'loginConfirmBtn': '로그인',
+    'sendResetLinkBtn': '초기화 링크 전송',
+    'changePasswordBtn': '비밀번호 변경',
+    'addUserConfirmBtn': '추가',
+    'deleteSelectedUsersBtn': '선택 사용자 삭제',
+    'saveAiConfigBtn': '저장',
+    'saveApiConfigBtn': '저장',
+    'excelReplaceBtn': '기존 삭제 후 업로드',
+    'excelAppendBtn': '추가만',
+    'excelCancelBtn': '취소'
+  };
+
+  // 모든 버튼 처리 - ID를 가진 버튼 우선 처리
+  document.querySelectorAll('button').forEach(btn => {
+    // 언어 선택 버튼은 제외
+    if (btn.classList.contains('lang-btn')) return;
+    
+    // ID를 가진 버튼은 buttonMappings에서 직접 찾아서 번역
+    if (btn.id && buttonMappings[btn.id]) {
+      const koKey = buttonMappings[btn.id];
+      btn.textContent = langData[koKey] || koKey;
+    }
+  });
+  
+  // 6. 사이드바 제목 업데이트
+  const listTitle = document.getElementById('listTitle');
+  if (listTitle) {
+    const currentText = listTitle.textContent;
+    if (currentText.includes('담당') || currentText.includes('Manager') || currentText.includes('负责人') || currentText.includes('担当者')) {
+      listTitle.textContent = `${langData['현 담당'] || '현 담당'} 목록`;
+    } else if (currentText.includes('SHIPOWNER') || currentText.includes('船东') || currentText.includes('船主') || currentText.includes('선주사')) {
+      listTitle.textContent = `${langData['SHIPOWNER'] || 'SHIPOWNER'} 목록`;
+    }
+  }
+  
+  // 7. 모달 내 텍스트 및 버튼 변경
+  updateModalTexts(langData);
+  
+  // 8. 필터 내 select option 텍스트 업데이트
+  updateSelectOptions(langData);
+  
+  console.log('UI 언어 업데이트 완료');
+}
+
+// 역방향 키 찾기 헬퍼 함수
+function findReverseKey(text) {
+  for (const [lang, translations] of Object.entries(translations)) {
+    for (const [koKey, translation] of Object.entries(translations)) {
+      if (translation === text) return koKey;
+    }
+  }
+  return null;
+}
+
+// Select 옵션 업데이트 함수
+function updateSelectOptions(langData) {
+  // AS 구분 필터
+  const asTypeFilter = document.getElementById('filterAsType');
+  if (asTypeFilter) {
+    Array.from(asTypeFilter.options).forEach(option => {
+      const value = option.value;
+      if (!value) option.textContent = langData["전체"] || "전체";
+      else if (value === "무상") option.textContent = langData["무상"] || "무상";
+      else if (value === "유상") option.textContent = langData["유상"] || "유상";
+      else if (value === "위탁") option.textContent = langData["위탁"] || "위탁";
+    });
+  }
+  
+  // 동작여부 필터
+  const activeFilter = document.getElementById('filterActive');
+  if (activeFilter) {
+    Array.from(activeFilter.options).forEach(option => {
+      const value = option.value;
+      if (!value) option.textContent = langData["전체"] || "전체";
+      else if (value === "정상A") option.textContent = langData["정상A"] || "정상A";
+      else if (value === "정상B") option.textContent = langData["정상B"] || "정상B";
+      else if (value === "유상정상") option.textContent = langData["유상정상"] || "유상정상";
+      else if (value === "부분동작") option.textContent = langData["부분동작"] || "부분동작";
+      else if (value === "동작불가") option.textContent = langData["동작불가"] || "동작불가";
+    });
+  }
+  
+  // 그룹 필터
+  const groupFilter = document.getElementById('filterGroup');
+  if (groupFilter && groupFilter.options[0]) {
+    groupFilter.options[0].textContent = langData["전체"] || "전체";
+  }
+  
+  // 테이블 내 select 요소들도 업데이트
+  document.querySelectorAll('td select').forEach(select => {
+    const field = select.dataset.field;
+    if (field === 'asType') {
+      Array.from(select.options).forEach(option => {
+        const value = option.value;
+        if (value === "무상") option.textContent = langData["무상"] || "무상";
+        else if (value === "유상") option.textContent = langData["유상"] || "유상";
+        else if (value === "위탁") option.textContent = langData["위탁"] || "위탁";
+      });
+    } else if (field === '동작여부') {
+      Array.from(select.options).forEach(option => {
+        const value = option.value;
+        if (langData[value]) option.textContent = langData[value];
+      });
+    }
+  });
+}
+
+// 모달 텍스트 업데이트를 위한 새 함수
+function updateModalTexts(langData) {
+  // 모달 제목 매핑
+  const modalTitles = {
+    "historyModal": "변경 이력",
+    "userModal": "사용자 관리",
+    "apiConfigModal": "API 설정 관리",
+    "excelModal": "엑셀 업로드 방식 선택",
+    "contentModal": "전체 내용",
+    "ownerAIModal": "선사별 접수내용/조치결과 요약",
+    "aiConfigModal": "AI 설정 관리",
+    "aiProgressModal": "AI 요약 진행 상황",
+    "apiProgressModal": "API 데이터 가져오기",
+    "forgotPasswordModal": "비밀번호 초기화",
+    "changePasswordModal": "비밀번호 변경"
+  };
+  
+  // 각 모달의 제목과 버튼 텍스트 변경
+  Object.entries(modalTitles).forEach(([modalId, defaultTitle]) => {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    
+    // 제목 변경
+    const titleEl = modal.querySelector('h2');
+    if (titleEl && langData[defaultTitle]) {
+      titleEl.textContent = langData[defaultTitle];
+    }
+    
+    // 모달 내 버튼 텍스트 변경
+    modal.querySelectorAll('button').forEach(btn => {
+      const key = btn.textContent.trim();
+      if (key && langData[key]) {
+        btn.textContent = langData[key];
+      }
+    });
+    
+    // 모달 내 레이블 변경
+    modal.querySelectorAll('label').forEach(label => {
+      const key = label.textContent.trim();
+      if (key && langData[key]) {
+        label.textContent = langData[key];
+      }
+    });
+  });
+}
+
+// 현황 필드 번역 함수 - 선택한 언어로 번역
+async function translateStatusField() {
+  // 현재 언어가 한국어인 경우 번역 안 함
+  if (currentLanguage === 'ko') {
+    alert('한국어가 선택된 상태에서는 번역할 필요가 없습니다.');
+    return;
+  }
+  
+  // 번역할 행 찾기
+  const rows = document.querySelectorAll('#asBody tr');
+  if (rows.length === 0) {
+    alert('번역할 데이터가 없습니다.');
+    return;
+  }
+  
+  // 번역 방향 확인
+  const translationDirection = getTranslationDirection(currentLanguage);
+  if (!translationDirection) {
+    alert('번역할 언어가 설정되지 않았습니다.');
+    return;
+  }
+  
+  const targetLangName = {
+    'en': '영어',
+    'zh': '중국어', 
+    'ja': '일본어'
+  }[translationDirection.to] || translationDirection.to;
+  
+  if (!confirm(`현황 필드를 ${targetLangName}로 번역하시겠습니까?`)) {
+    return;
+  }
+  
+  // 진행 표시기 생성
+  const progressIndicator = document.createElement('div');
+  progressIndicator.className = 'translation-progress';
+  progressIndicator.innerHTML = `
+    <div class="translation-spinner"></div>
+    <div>${targetLangName}로 번역 중... (0/${rows.length})</div>
+  `;
+  document.body.appendChild(progressIndicator);
+  
+  // 테이블 비활성화
+  document.getElementById('asTable').classList.add('translating');
+  document.getElementById('translateBtn').disabled = true;
+  
+  try {
+    // 일괄 업데이트를 위한 객체
+    const updates = {};
+    let successCount = 0;
+    let errorCount = 0;
+    
+    // 각 행 순차적으로 처리
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      
+      try {
+        // 행의 UID 가져오기
+        const checkbox = row.querySelector('.rowSelectChk');
+        if (!checkbox) continue;
+        
+        const uid = checkbox.dataset.uid;
+        if (!uid) continue;
+        
+        // 현황 필드 내용 가져오기
+        const statusCell = row.querySelector('td[data-field="현황"] input');
+        if (!statusCell || !statusCell.value.trim()) continue;
+        
+        const originalText = statusCell.value.trim();
+        
+        // 이미 번역된 내용이 있는지 확인 (데이터베이스)
+        const rowData = asData.find(r => r.uid === uid);
+        if (!rowData) continue;
+        
+        // 현재 언어와 원본이 동일하고 번역본이 있으면 기존 번역 사용
+        const currentTranslationKey = `현황번역_${currentLanguage}`;
+        if (rowData[currentTranslationKey] && rowData.현황 === originalText) {
+          // 이미 해당 언어로 번역된 내용이 있으면 기존 번역 사용
+          const translationCell = row.querySelector('td[data-field="현황번역"] input');
+          if (translationCell) {
+            translationCell.value = rowData[currentTranslationKey];
+          }
+          successCount++;
+        } else {
+          try {
+            // 번역 시도
+            const translatedText = await translateText(originalText, translationDirection.to);
+            
+            if (translatedText && translatedText.trim()) {
+              // 번역 결과를 화면에 표시
+              const translationCell = row.querySelector('td[data-field="현황번역"] input');
+              if (translationCell) {
+                translationCell.value = translatedText;
+              }
+              
+              // 데이터 업데이트 준비 (언어별로 저장)
+              rowData.현황번역 = translatedText;
+              rowData[currentTranslationKey] = translatedText; // 언어별 백업
+              updates[`${asPath}/${uid}/현황번역`] = translatedText;
+              updates[`${asPath}/${uid}/${currentTranslationKey}`] = translatedText;
+              successCount++;
+            } else {
+              console.error(`행 ${i+1} 번역 결과가 비어있음`);
+              errorCount++;
+            }
+          } catch (translationError) {
+            console.error(`행 ${i+1} 번역 오류:`, translationError);
+            errorCount++;
+          }
+        }
+        
+        // 진행 상황 업데이트
+        progressIndicator.querySelector('div:last-child').textContent = 
+          `${targetLangName}로 번역 중... (${i+1}/${rows.length}) - 성공: ${successCount}, 실패: ${errorCount}`;
+        
+      } catch (rowError) {
+        console.error(`행 ${i+1} 처리 오류:`, rowError);
+        errorCount++;
+      }
+      
+      // API 호출 사이에 지연
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    // 데이터베이스에 일괄 업데이트
+    if (Object.keys(updates).length > 0) {
+      await db.ref().update(updates);
+      addHistory(`현황 번역(${targetLangName}) 완료 - 성공: ${successCount}, 실패: ${errorCount}`);
+    }
+    
+    if (errorCount > 0) {
+      alert(`${targetLangName} 번역 완료: ${successCount}개 성공, ${errorCount}개 실패\n\n일부 항목은 번역에 실패했습니다.`);
+    } else {
+      alert(`${targetLangName} 번역 완료: ${successCount}개 항목`);
+    }
+    
+  } catch (error) {
+    console.error('번역 처리 중 오류:', error);
+    alert('번역 처리 중 오류가 발생했습니다.');
+  } finally {
+    // 진행 표시기 제거
+    if (document.body.contains(progressIndicator)) {
+      document.body.removeChild(progressIndicator);
+    }
+    
+    // 테이블 활성화
+    document.getElementById('asTable').classList.remove('translating');
+    document.getElementById('translateBtn').disabled = false;
+  }
+}
+
+// 수정된 translateText 함수 - 다른 API로 대체
+async function translateText(text, targetLang) {
+  try {
+    // 텍스트가 비어있으면 바로 빈 문자열 반환
+    if (!text || text.trim() === '') return '';
+
+    // 먼저 LibreTranslate API 시도
+    try {
+      console.log("LibreTranslate API 시도 중...");
+      const libreResult = await tryLibreTranslate(text, targetLang);
+      console.log("LibreTranslate 성공!");
+      return libreResult;
+    } catch (libreError) {
+      console.error("LibreTranslate API 실패:", libreError);
+      
+      // LibreTranslate 실패 시 MyMemory API 시도
+      console.log("MyMemory API로 대체 시도 중...");
+      const myMemoryResult = await tryMyMemoryTranslate(text, targetLang);
+      console.log("MyMemory 번역 성공!");
+      return myMemoryResult;
+    }
+  } catch (error) {
+    console.error('모든 번역 API 실패:', error);
+    throw new Error('번역 서비스를 사용할 수 없습니다.');
+  }
+}
+
+// LibreTranslate API 시도
+async function tryLibreTranslate(text, targetLang) {
+  const apiUrl = 'https://libretranslate.com/translate';
+  
+  // 타임아웃 설정을 위한 AbortController 사용
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5초 타임아웃
+  
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      body: JSON.stringify({
+        q: text,
+        source: 'ko',
+        target: targetLang,
+        format: 'text',
+        api_key: ''
+      }),
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.translatedText) {
+      return data.translatedText;
+    } else {
+      throw new Error('번역 결과가 없습니다.');
+    }
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error; // 오류를 상위로 전파
+  }
+}
+
+// MyMemory API 시도 (대체 API)
+async function tryMyMemoryTranslate(text, targetLang) {
+  // MyMemory는 무료 사용 시 더 짧은 텍스트에 최적화되어 있으므로
+  // 긴 텍스트는 문장 단위로 나누어 처리
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  let translatedText = "";
+  
+  for (const sentence of sentences) {
+    if (!sentence.trim()) continue;
+    
+    // MyMemory API URL - 언어 코드 매핑
+    const langCodeMap = {
+      'en': 'en',
+      'zh': 'zh-CN', // MyMemory에서는 zh-CN 사용
+      'ja': 'ja'
+    };
+    const mappedTargetLang = langCodeMap[targetLang] || targetLang;
+    const apiUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(sentence)}&langpair=ko|${mappedTargetLang}&de=a@example.com`;
+    
+    // 타임아웃 설정을 위한 AbortController 사용
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5초 타임아웃
+    
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.responseData && data.responseData.translatedText) {
+        translatedText += data.responseData.translatedText + " ";
+      } else {
+        throw new Error('MyMemory 번역 결과가 없습니다.');
+      }
+      
+      // API 제한 방지를 위한 지연
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
+  }
+  
+  return translatedText.trim();
+}
+
+// 언어 코드 매핑 함수 (translateStatusField 함수 앞에 추가)
+function getTargetLanguageCode(currentLang) {
+  const languageMap = {
+    'ko': 'ko',  // 한국어 → 한국어 (번역 안 함)
+    'en': 'en',  // 영어
+    'zh': 'zh',  // 중국어
+    'ja': 'ja'   // 일본어
+  };
+  
+  return languageMap[currentLang] || 'en';
+}
+
+// 언어별 번역 방향 결정 함수
+function getTranslationDirection(currentLang) {
+  if (currentLang === 'ko') {
+    return null; // 한국어일 때는 번역하지 않음
+  }
+  return { from: 'ko', to: getTargetLanguageCode(currentLang) };
 }
 
 /** ==================================
@@ -769,7 +1942,7 @@ async function loadApiConfig() {
   }
 }
 
-// API 크레딧 상태 확인 함수 수정
+// API 크레딧 상태 확인 함수 수정 (이어서)
 async function checkApiCreditStatus() {
   const statusElem = document.getElementById('apiCreditStatus');
   statusElem.textContent = "API 상태 확인 중...";
@@ -940,7 +2113,7 @@ function loadData() {
       if (r["현 담당"] && !r.manager) r.manager = r["현 담당"];
       if (r["SHIPOWNER"] && !r.shipowner) r.shipowner = r["SHIPOWNER"];
       if (r.group && typeof r.group !== 'string') r.group = String(r.group);
-      if (!("AS접수일자" in r)) r["AS접수일자"] = "";
+if (!("AS접수일자" in r)) r["AS접수일자"] = "";
       if (!("정상지연" in r)) r["정상지연"] = "";
       if (!("지연 사유" in r)) r["지연 사유"] = "";
       
@@ -948,6 +2121,9 @@ function loadData() {
       if (!("api_name" in r)) r["api_name"] = "";
       if (!("api_owner" in r)) r["api_owner"] = "";
       if (!("api_manager" in r)) r["api_manager"] = "";
+      
+      // 현황번역 필드 초기화 (추가된 부분)
+      if (!("현황번역" in r)) r["현황번역"] = "";
       
       asData.push(r);
     });
@@ -957,9 +2133,87 @@ function loadData() {
   });
 }
 
-// 데이터 전체 저장
+
+// onCellChange 함수 수정 - 변경된 행 추적
+function onCellChange(e) {
+  const uid = e.target.dataset.uid;
+  const field = e.target.dataset.field;
+  let newVal = "";
+  
+  if (e.target.type === 'checkbox') {
+    newVal = e.target.checked ? "Y" : "";
+  } else {
+    newVal = e.target.value;
+  }
+  
+  // 해당 UID의 데이터 찾기
+  const row = asData.find(x => x.uid === uid);
+  if (!row) return;
+  
+  const oldVal = row[field] || '';
+  if (oldVal === newVal) return;
+  
+  // 데이터 로컬 업데이트
+  row[field] = newVal;
+  
+  // 수정된 행 추적
+  modifiedRows.add(uid);
+  
+  // 변경 사항 일괄 업데이트를 위해 저장
+  if (!pendingRowUpdates.has(uid)) {
+    pendingRowUpdates.set(uid, {});
+  }
+  pendingRowUpdates.get(uid)[field] = newVal;
+  
+  // 일괄 처리 예약 (300ms 디바운스)
+  if (window.pendingUpdateTimer) {
+    clearTimeout(window.pendingUpdateTimer);
+  }
+  window.pendingUpdateTimer = setTimeout(processRowUpdates, 300);
+  
+  // 특정 필드 변경 시 테이블 즉시 다시 그리기
+  if (field === "정상지연" || field === "AS접수일자" || field === "기술적종료일") {
+    // 필터 상태 저장
+    saveFilterState();
+    
+    // 현재 필터 활성화 상태에 따라 렌더링
+    if (isFilterActive) {
+      renderTable(false);
+    } else if (lastRenderedData.length > 0) {
+      renderTable(true);
+    } else {
+      renderTable(false);
+    }
+    
+    restoreFilterState();
+  }
+  
+  // 현황 필드가 변경되었다면 현황번역 필드를 초기화
+  if (field === "현황") {
+    row.현황번역 = "";
+    if (!pendingRowUpdates.has(uid)) {
+      pendingRowUpdates.set(uid, {});
+    }
+    pendingRowUpdates.get(uid)["현황번역"] = "";
+    
+    // 번역 필드 UI 업데이트
+    const translationCell = e.target.closest('tr').querySelector('td[data-field="현황번역"] input');
+    if (translationCell) {
+      translationCell.value = "";
+    }
+  }
+}
+
+// 수정된 데이터만 저장
+// saveAllData 함수 수정 - modifiedRows를 사용하지 않고 직접 비교
+// 수정된 항목만 저장하는 saveAllData
 function saveAllData() {
-  if (!confirm("전체 데이터를 저장하시겠습니까?")) return;
+  if (modifiedRows.size === 0) {
+    alert("수정된 내용이 없습니다.");
+    return;
+  }
+  
+  if (!confirm(`수정된 ${modifiedRows.size}개 항목을 저장하시겠습니까?`)) return;
   
   // 저장 중 표시
   const saveBtn = document.getElementById('saveBtn');
@@ -967,20 +2221,28 @@ function saveAllData() {
   saveBtn.textContent = "저장 중...";
   saveBtn.disabled = true;
   
-  // 각 행을 키로 변환하여 업데이트 객체 생성
+  // 수정된 행만 업데이트 객체 생성
   const updates = {};
-  asData.forEach(r => updates[r.uid] = r);
+  modifiedRows.forEach(uid => {
+    const row = asData.find(r => r.uid === uid);
+    if (row) {
+      updates[uid] = row;
+    }
+  });
   
   db.ref(asPath).update(updates)
     .then(() => {
-      alert("전체 저장 완료");
-      addHistory("전체 저장");
+      const count = modifiedRows.size;
+      modifiedRows.clear(); // 저장 후 수정된 행 목록 초기화
+      
+      alert(`${count}개 항목 저장 완료`);
+      addHistory(`수정된 ${count}개 항목 저장`);
       
       // 버튼 상태 복원
       saveBtn.textContent = originalText;
       saveBtn.disabled = false;
       
-      // 저장 성공 표시 (옵션)
+      // 저장 성공 표시
       saveBtn.classList.add('save-success');
       setTimeout(() => {
         saveBtn.classList.remove('save-success');
@@ -996,7 +2258,8 @@ function saveAllData() {
     });
 }
 
-// 새 행 추가
+
+// 새 행 추가 시에도 수정된 행으로 추가
 function addNewRow() {
   const uid = db.ref().push().key;
   const obj = {
@@ -1004,7 +2267,7 @@ function addNewRow() {
     공번: '', 공사: '', imo: '', hull: '', shipName: '', repMail: '',
     shipType: '', scale: '', 구분: '', shipowner: '', major: '', group: '',
     shipyard: '', contract: '', asType: '유상', delivery: '', warranty: '',
-    prevManager: '', manager: '', 현황: '', 동작여부: '정상A',
+    prevManager: '', manager: '', 현황: '', 현황번역: '', 동작여부: '정상A',
     조치계획: '', 접수내용: '', 조치결과: '',
     "AS접수일자": '',
     "기술적종료일": '',
@@ -1018,7 +2281,43 @@ function addNewRow() {
   
   // 행을 배열 앞에 추가하여 최근 추가 항목이 맨 위에 표시되도록 함
   asData.unshift(obj);
+  
+  // 새로 추가된 행을 수정된 행으로 표시
+  modifiedRows.add(uid);
+  
+  // 필터 상태 저장 및 복원
+  saveFilterState();
   renderTable(true); // 바로 보여주도록
+  restoreFilterState();
+}
+
+// 새 행 추가
+function addNewRow() {
+  const uid = db.ref().push().key;
+  const obj = {
+    uid,
+    공번: '', 공사: '', imo: '', hull: '', shipName: '', repMail: '',
+    shipType: '', scale: '', 구분: '', shipowner: '', major: '', group: '',
+    shipyard: '', contract: '', asType: '유상', delivery: '', warranty: '',
+    prevManager: '', manager: '', 현황: '', 현황번역: '', 동작여부: '정상A',
+    조치계획: '', 접수내용: '', 조치결과: '',
+    "AS접수일자": '',
+    "기술적종료일": '',
+    "정상지연": '',
+    "지연 사유": '',
+    // API 필드 추가
+    "api_name": '',
+    "api_owner": '',
+    "api_manager": ''
+  };
+  
+  // 행을 배열 앞에 추가하여 최근 추가 항목이 맨 위에 표시되도록 함
+  asData.unshift(obj);
+  
+  // 필터 상태 저장 및 복원
+  saveFilterState();
+  renderTable(true); // 바로 보여주도록
+  restoreFilterState();
 }
 
 // 선택 행 삭제
@@ -1038,7 +2337,11 @@ function deleteSelectedRows() {
   
   // 체크박스 초기화 및 테이블 다시 그리기
   document.getElementById('selectAll').checked = false;
+  
+  // 필터 상태 저장 및 복원
+  saveFilterState();
   renderTable(true);
+  restoreFilterState();
 }
 
 // 모든 체크박스 선택/해제
@@ -1050,8 +2353,11 @@ function toggleSelectAll(e) {
 // 테이블 클릭 이벤트 핸들러
 function handleTableClick(e) {
   // 헤더 클릭 시 정렬 (col-resizer 클릭은 제외)
-  if (e.target.tagName === 'TH' && e.target.dataset.field && !e.target.querySelector('.col-resizer').contains(e.target)) {
-    const field = e.target.dataset.field;
+  if ((e.target.tagName === 'TH' || e.target.closest('th')) && !e.target.classList.contains('col-resizer')) {
+    const th = e.target.tagName === 'TH' ? e.target : e.target.closest('th');
+    const field = th.dataset.field;
+    
+    if (!field) return;
     
     // 정렬 디버깅 로그
     console.log(`헤더 클릭: ${field}`);
@@ -1075,7 +2381,7 @@ function handleTableClick(e) {
     const sortIndicator = document.createElement('span');
     sortIndicator.className = 'sort-indicator';
     sortIndicator.innerHTML = sortAsc ? ' &#9650;' : ' &#9660;'; // 위/아래 화살표
-    e.target.appendChild(sortIndicator);
+    th.appendChild(sortIndicator);
     
     // 전체 데이터 정렬 - 메모리 내에서 직접 정렬
     asData.sort((a, b) => {
@@ -1092,7 +2398,9 @@ function handleTableClick(e) {
     console.log(`정렬 완료, 첫 번째 값: ${asData[0][field]}, 마지막 값: ${asData[asData.length-1][field]}`);
     
     // 전체 테이블 다시 그리기 (정렬된 데이터로)
+    saveFilterState();
     renderTable(true);
+    restoreFilterState();
   }
 }
 
@@ -1119,31 +2427,20 @@ function renderTable(overrideAll = false) {
       return;
     }
 
-    // 필터값 수집
-    const fIMO = document.getElementById('filterIMO').value.trim().toLowerCase();
-    const fHull = document.getElementById('filterHull').value.trim().toLowerCase();
-    const fName = document.getElementById('filterName').value.trim().toLowerCase();
-    const fOwner = document.getElementById('filterOwner').value.trim().toLowerCase();
-    const fMajor = document.getElementById('filterMajor').value.trim().toLowerCase();
-    const fRepMail = document.getElementById('filterRepMail').value.trim().toLowerCase();
-    const fGroup = document.getElementById('filterGroup').value;
-    const fAsType = document.getElementById('filterAsType').value;
-    const fMgr = document.getElementById('filterManager').value.trim().toLowerCase();
-    const fActive = document.getElementById('filterActive').value;
-
     // 현재 필터 상태 저장
-    const currentFilterState = {
-      fIMO, fHull, fName, fOwner, fMajor, fRepMail, fGroup, fAsType, fMgr, fActive
-    };
-    
-    // 필터 상태가 동일하고 강제 렌더링이 아니면 다시 그리지 않음
-    if (!overrideAll && isEqual(lastFilterState, currentFilterState)) {
-      isTableRendering = false;
-      return;
-    }
-    
-    // 필터 상태 갱신
-    lastFilterState = currentFilterState;
+    saveFilterState();
+
+    // 필터값 수집
+    const fIMO = currentFilterState.imo || '';
+    const fHull = currentFilterState.hull || '';
+    const fName = currentFilterState.name || '';
+    const fOwner = currentFilterState.owner || '';
+    const fMajor = currentFilterState.major || '';
+    const fRepMail = currentFilterState.repMail || '';
+    const fGroup = currentFilterState.group || '';
+    const fAsType = currentFilterState.asType || '';
+    const fMgr = currentFilterState.manager || '';
+    const fActive = currentFilterState.active || '';
 
     const allEmpty = !fIMO && !fHull && !fName && !fOwner && !fMajor && !fRepMail && !fGroup && !fAsType && !fMgr && !fActive;
     if (allEmpty && !overrideAll) {
@@ -1156,50 +2453,41 @@ function renderTable(overrideAll = false) {
       document.getElementById('count부분동작').textContent = '0';
       document.getElementById('count동작불가').textContent = '0';
       isTableRendering = false;
+      lastRenderedData = [];
       return;
     }
 
     // 필터링 및 정렬 작업 - 새 배열 생성으로 원본 데이터 보존
     let filteredData = [];
     
-    // 정렬 함수 - 메모리 최적화를 위해 작업 전 생성
-    const compareFunc = (a, b) => {
-      const aa = a[sortField] || '';
-      const bb = b[sortField] || '';
-      if (aa < bb) return sortAsc ? -1 : 1;
-      if (aa > bb) return sortAsc ? 1 : -1;
-      return 0;
-    };
-    
-    // 필터링 및 정렬 작업
+    // 필터링 작업
+    filteredData = asData.filter(row => {
+      if (!overrideAll) {
+        const imoVal = String(row.imo || '').toLowerCase();
+        const hullVal = String(row.hull || '').toLowerCase();
+        const nameVal = String(row.shipName || '').toLowerCase();
+        const ownVal = String(row.shipowner || '').toLowerCase();
+        const majVal = String(row.major || '').toLowerCase();
+        const repMailVal = String(row.repMail || '').toLowerCase();
+        const mgrVal = String(row.manager || '').toLowerCase();
+        const actVal = String(row.동작여부 || '');
+
+        if (fIMO && !imoVal.includes(fIMO.toLowerCase())) return false;
+        if (fHull && !hullVal.includes(fHull.toLowerCase())) return false;
+        if (fName && !nameVal.includes(fName.toLowerCase())) return false;
+        if (fOwner && !ownVal.includes(fOwner.toLowerCase())) return false;
+        if (fMajor && !majVal.includes(fMajor.toLowerCase())) return false;
+        if (fRepMail && !repMailVal.includes(fRepMail.toLowerCase())) return false;
+        if (fGroup && row.group !== fGroup) return false;
+        if (fAsType && row.asType !== fAsType) return false;
+        if (fMgr && !mgrVal.includes(fMgr.toLowerCase())) return false;
+        if (fActive && actVal !== fActive) return false;
+      }
+      return true;
+    });
+
+    // 정렬 적용 - 정렬 필드가 있을 때만
     if (sortField) {
-      // 정렬이 필요한 경우, 필터링도 함께 수행
-      filteredData = asData.filter(row => {
-        if (!overrideAll) {
-          const imoVal = String(row.imo || '').toLowerCase();
-          const hullVal = String(row.hull || '').toLowerCase();
-          const nameVal = String(row.shipName || '').toLowerCase();
-          const ownVal = String(row.shipowner || '').toLowerCase();
-          const majVal = String(row.major || '').toLowerCase();
-          const repMailVal = String(row.repMail || '').toLowerCase();
-          const mgrVal = String(row.manager || '').toLowerCase();
-          const actVal = String(row.동작여부 || '');
-
-          if (fIMO && !imoVal.includes(fIMO)) return false;
-          if (fHull && !hullVal.includes(fHull)) return false;
-          if (fName && !nameVal.includes(fName)) return false;
-          if (fOwner && !ownVal.includes(fOwner)) return false;
-          if (fMajor && !majVal.includes(fMajor)) return false;
-          if (fRepMail && !repMailVal.includes(fRepMail)) return false;
-          if (fGroup && row.group !== fGroup) return false;
-          if (fAsType && row.asType !== fAsType) return false;
-          if (fMgr && !mgrVal.includes(fMgr)) return false;
-          if (fActive && actVal !== fActive) return false;
-        }
-        return true;
-      });
-
-      // 정렬 적용 - 명시적으로 .sort() 호출
       filteredData.sort((a, b) => {
         const aa = String(a[sortField] || '');
         const bb = String(b[sortField] || '');
@@ -1207,94 +2495,184 @@ function renderTable(overrideAll = false) {
         if (aa > bb) return sortAsc ? 1 : -1;
         return 0;
       });
-    } else {
-      // 정렬이 필요 없는 경우, 필터링만 수행
-      filteredData = asData.filter(row => {
-        if (!overrideAll) {
-          const imoVal = String(row.imo || '').toLowerCase();
-          const hullVal = String(row.hull || '').toLowerCase();
-          const nameVal = String(row.shipName || '').toLowerCase();
-          const ownVal = String(row.shipowner || '').toLowerCase();
-          const majVal = String(row.major || '').toLowerCase();
-          const repMailVal = String(row.repMail || '').toLowerCase();
-          const mgrVal = String(row.manager || '').toLowerCase();
-          const actVal = String(row.동작여부 || '');
-
-          if (fIMO && !imoVal.includes(fIMO)) return false;
-          if (fHull && !hullVal.includes(fHull)) return false;
-          if (fName && !nameVal.includes(fName)) return false;
-          if (fOwner && !ownVal.includes(fOwner)) return false;
-          if (fMajor && !majVal.includes(fMajor)) return false;
-          if (fRepMail && !repMailVal.includes(fRepMail)) return false;
-          if (fGroup && row.group !== fGroup) return false;
-          if (fAsType && row.asType !== fAsType) return false;
-          if (fMgr && !mgrVal.includes(fMgr)) return false;
-          if (fActive && actVal !== fActive) return false;
-        }
-        return true;
-      });
     }
+    
+    // 렌더링된 데이터 저장
+    lastRenderedData = filteredData;
     
     // 상태 집계
     const counts = {정상A: 0, 정상B: 0, 유상정상: 0, 부분동작: 0, 동작불가: 0};
     
-    // 정렬 디버깅 로그 - 문제 확인용
-    console.log(`정렬 상태: field=${sortField}, asc=${sortAsc}, 데이터 수=${filteredData.length}`);
-    if (filteredData.length > 0 && sortField) {
-      console.log(`첫 번째 항목 ${sortField} 값:`, filteredData[0][sortField]);
-      console.log(`마지막 항목 ${sortField} 값:`, filteredData[filteredData.length-1][sortField]);
-    }
     filteredData.forEach(row => {
       if (counts.hasOwnProperty(row.동작여부)) counts[row.동작여부]++;
     });
     
-    // DOM 조작 - 최적화를 위해 DocumentFragment 사용
+    // DOM 조작 - 최적화를 위해 배치 렌더링 사용
     const tbody = document.getElementById('asBody');
-    const fragment = document.createDocumentFragment();
+    const batchSize = 50; // 한 번에 렌더링할 행 수
+    let currentIndex = 0;
     
-    // 테이블 행 생성 함수 - 성능 향상을 위해 분리
-    filteredData.forEach(row => {
-      const tr = createTableRow(row, counts);
-      fragment.appendChild(tr);
-    });
-    
-    // 기존 내용 지우고 한 번에 추가
+    // 테이블 헤더 먼저 렌더링
+    renderTableHeaders();
+
+    // 기존 내용 초기화
     tbody.innerHTML = '';
-    tbody.appendChild(fragment);
-
-    // 동작여부 집계 표시
-    document.getElementById('count정상A').textContent = counts.정상A;
-    document.getElementById('count정상B').textContent = counts.정상B;
-    document.getElementById('count유상정상').textContent = counts.유상정상;
-    document.getElementById('count부분동작').textContent = counts.부분동작;
-    document.getElementById('count동작불가').textContent = counts.동작불가;
-
-    // 정렬 표시기 업데이트 - 필요한 경우
-    if (sortField) {
-      // 기존 정렬 표시기 제거
-      document.querySelectorAll('th .sort-indicator').forEach(indicator => {
-        indicator.remove();
-      });
+    
+    // 배치 렌더링 함수
+    const renderBatch = () => {
+      const fragment = document.createDocumentFragment();
+      const endIndex = Math.min(currentIndex + batchSize, filteredData.length);
       
-      // 현재 정렬 필드에 정렬 표시기 추가
-      const sortedTh = document.querySelector(`th[data-field="${sortField}"]`);
-      if (sortedTh) {
-        const sortIndicator = document.createElement('span');
-        sortIndicator.className = 'sort-indicator';
-        sortIndicator.innerHTML = sortAsc ? ' &#9650;' : ' &#9660;'; // 위/아래 화살표
-        sortedTh.appendChild(sortIndicator);
+      for (let i = currentIndex; i < endIndex; i++) {
+        const row = filteredData[i];
+        const tr = createTableRow(row, counts);
+        fragment.appendChild(tr);
       }
+      
+      tbody.appendChild(fragment);
+      currentIndex = endIndex;
+      
+      // 다음 배치가 있으면 계속 렌더링
+      if (currentIndex < filteredData.length) {
+        requestAnimationFrame(renderBatch);
+      } else {
+        // 렌더링 완료 후 작업
+        finishRendering(counts);
+      }
+    };
+    
+    // 첫 번째 배치 렌더링 시작
+    if (filteredData.length > 0) {
+      requestAnimationFrame(renderBatch);
+    } else {
+      finishRendering(counts);
     }
-
-    // 사이드바 목록 갱신
-    updateSidebarList();
+    
   } finally {
     // 렌더링 플래그 초기화
     isTableRendering = false;
   }
 }
 
-// 테이블 행 생성 함수 - 모듈화로 renderTable 함수의 복잡도 감소
+// 렌더링 완료 후 작업
+function finishRendering(counts) {
+  // 동작여부 집계 표시
+  document.getElementById('count정상A').textContent = counts.정상A;
+  document.getElementById('count정상B').textContent = counts.정상B;
+  document.getElementById('count유상정상').textContent = counts.유상정상;
+  document.getElementById('count부분동작').textContent = counts.부분동작;
+  document.getElementById('count동작불가').textContent = counts.동작불가;
+
+  // 사이드바 목록 갱신
+  updateSidebarList();
+  
+  // 언어 적용 (헤더 제외)
+  updateUILanguageExceptHeaders();
+}
+
+// 헤더를 제외한 UI 업데이트 함수
+function updateUILanguageExceptHeaders() {
+  const langData = translations[currentLanguage];
+  if (!langData) return;
+  
+  // 1. 헤더 및 상단 요소 변경
+  document.querySelector('.header h1').textContent = langData["AS 현황 관리"] || "AS 현황 관리";
+  
+  // 사용자 정보 텍스트 변경
+  const userInfoText = langData["사용자"] || "사용자";
+  const userName = document.getElementById('currentUserName').textContent;
+  document.getElementById('userInfo').innerHTML = `${userInfoText}: <span id="currentUserName">${userName}</span>`;
+  
+  // 로그아웃 버튼
+  document.getElementById('logoutBtn').textContent = langData["로그아웃"] || "로그아웃";
+  
+  // 연결 상태 메시지
+  const connectionText = document.getElementById('connectionStatus').textContent;
+  const statusLabel = langData["연결 상태"] || "연결 상태";
+  const statusValue = connectionText.split(":")[1] ? connectionText.split(":")[1].trim() : "";
+  document.getElementById('connectionStatus').textContent = `${statusLabel}: ${statusValue}`;
+  
+  // 2. 상태 카드 변경
+  document.querySelectorAll('.status-card h3').forEach(el => {
+    const key = el.textContent;
+    if (langData[key]) {
+      el.textContent = langData[key];
+    }
+  });
+  
+  // 3. 필터 레이블 변경
+  document.querySelectorAll('.filter-group label').forEach(el => {
+    const key = el.textContent;
+    if (langData[key]) {
+      el.textContent = langData[key];
+    }
+  });
+  
+  // 필터 선택 옵션 변경 (select 요소 내부의 option 태그들)
+  document.querySelectorAll('select option').forEach(el => {
+    const key = el.textContent;
+    if (langData[key]) {
+      el.textContent = langData[key];
+    }
+  });
+
+  // 5. 하단 버튼들의 ID 기반 매핑 (추가)
+  const bottomButtonMappings = {
+    'loadBtn': '전체조회',
+    'addRowBtn': '행 추가', 
+    'deleteRowBtn': '선택 행 삭제',
+    'saveBtn': '저장',
+    'downloadExcelBtn': '엑셀 다운로드',
+    'uploadExcelBtn': '엑셀 업로드',
+    'uploadAsStatusBtn': 'AS 현황 업로드',
+    'historyBtn': '히스토리 조회',
+    'clearHistoryBtn': '히스토리 전체 삭제',
+    'translateBtn': '현황 번역',
+    'ownerAISummaryBtn': '선사별 AI 요약',
+    'apiRefreshAllBtn': 'API 전체 반영'
+  };
+
+  // ID 기반으로 하단 버튼들 업데이트
+  Object.entries(bottomButtonMappings).forEach(([btnId, koKey]) => {
+    const btn = document.getElementById(btnId);
+    if (btn && langData[koKey]) {
+      btn.textContent = langData[koKey];
+    }
+  });
+
+  // 일반 버튼 텍스트 변경 (lang-btn 제외)
+  document.querySelectorAll('button:not(.lang-btn)').forEach(btn => {
+    // 이미 ID로 처리된 버튼은 건너뛰기
+    if (btn.id && bottomButtonMappings[btn.id]) return;
+    
+    const key = btn.textContent.trim();
+    if (key && langData[key]) {
+      btn.textContent = langData[key];
+    }
+  });
+  
+  // 7. 테이블 내 모든 버튼 텍스트 변경
+  document.querySelectorAll('td button').forEach(btn => {
+    const key = btn.textContent.trim();
+    if (key && langData[key]) {
+      btn.textContent = langData[key];
+    }
+  });
+
+  // 8. 사이드바 버튼들도 업데이트
+  document.getElementById('btnManager').textContent = langData['담당자'] || '담당자';
+  document.getElementById('btnOwner').textContent = langData['선주사'] || '선주사';
+  document.getElementById('userManageBtn').textContent = langData['사용자 관리'] || '사용자 관리';
+  document.getElementById('aiConfigBtn').textContent = langData['AI 설정 관리'] || 'AI 설정 관리';
+  document.getElementById('apiConfigBtn').textContent = langData['API 설정 관리'] || 'API 설정 관리';
+  
+  // 8. 모달 내 텍스트 및 버튼 변경
+  updateModalTexts(langData);
+  
+  console.log('UI 언어 업데이트 완료');
+}
+
+// 테이블 행 생성 함수 수정 - 언어별 버튼 텍스트 처리
 function createTableRow(row, counts) {
   const tr = document.createElement('tr');
 
@@ -1317,10 +2695,10 @@ function createTableRow(row, counts) {
   tr.appendChild(makeCell(row.api_owner, 'api_owner'));
   tr.appendChild(makeCell(row.api_manager, 'api_manager'));
   
-  // API 반영 버튼
+  // API 반영 버튼 - 언어별 텍스트
   const apiTd = document.createElement('td');
   const apiBtn = document.createElement('button');
-  apiBtn.textContent = "반영";
+  apiBtn.textContent = translations[currentLanguage]["반영"] || "반영";
   apiBtn.style.background = "#28a745";
   apiBtn.style.color = "#fff";
   apiBtn.style.cursor = "pointer";
@@ -1349,11 +2727,14 @@ function createTableRow(row, counts) {
   tr.appendChild(makeCell(row.prevManager, 'prevManager'));
   tr.appendChild(makeCell(row.manager, 'manager'));
   tr.appendChild(makeCell(row.현황, '현황'));
+  
+  // 현황 번역 필드 추가
+  tr.appendChild(makeCell(row.현황번역 || '', '현황번역'));
 
-  // (1) AI 요약 버튼 (단일 행)
+  // (1) AI 요약 버튼 (단일 행) - 언어별 텍스트
   const aiTd = document.createElement('td');
   const aiBtn = document.createElement('button');
-  aiBtn.textContent = "AI 요약";
+  aiBtn.textContent = translations[currentLanguage]["AI 요약"] || "AI 요약";
   aiBtn.style.background = "#6c757d";
   aiBtn.style.color = "#fff";
   aiBtn.style.cursor = "pointer";
@@ -1370,10 +2751,10 @@ function createTableRow(row, counts) {
   tr.appendChild(makeCell(row.접수내용, '접수내용'));
   tr.appendChild(makeCell(row.조치결과, '조치결과'));
 
-  // (2) 히스토리 AI 요약
+  // (2) 히스토리 AI 요약 - 언어별 텍스트
   const historyTd = document.createElement('td');
   const historyBtn = document.createElement('button');
-  historyBtn.textContent = "AI 요약";
+  historyBtn.textContent = translations[currentLanguage]["AI 요약"] || "AI 요약";
   historyBtn.style.background = "#007bff";
   historyBtn.style.color = "#fff";
   historyBtn.style.cursor = "pointer";
@@ -1492,6 +2873,16 @@ function makeCell(val, fld) {
     c.appendChild(inp);
   } else if (['api_name', 'api_owner', 'api_manager'].includes(fld)) {
     // API 데이터 필드 (읽기 전용)
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.value = val || '';
+    inp.style.width = '95%';
+    inp.readOnly = true;
+    inp.dataset.uid = '';  // rowId는 행 생성 시 할당
+    inp.dataset.field = fld;
+    c.appendChild(inp);
+  } else if (fld === '현황번역') {
+    // 현황 번역 필드 (읽기 전용)
     const inp = document.createElement('input');
     inp.type = 'text';
     inp.value = val || '';
@@ -1630,40 +3021,59 @@ function onCellChange(e) {
   }
   window.pendingUpdateTimer = setTimeout(processRowUpdates, 300);
   
-  // 특정 필드 변경 시 테이블 즉시 다시 그리기
-  if (field === "정상지연" || field === "AS접수일자" || field === "기술적종료일") {
-    renderTable(true);
+// 특정 필드 변경 시 테이블 즉시 다시 그리기
+if (field === "정상지연" || field === "AS접수일자" || field === "기술적종료일") {
+  // 필터 상태 저장
+  saveFilterState();
+  
+  // 현재 필터 활성화 상태에 따라 렌더링
+  // isFilterActive가 true면 필터 적용, false면 마지막 렌더링 상태 유지
+  if (isFilterActive) {
+    renderTable(false); // 필터 적용된 상태로 렌더링
+  } else if (lastRenderedData.length > 0) {
+    renderTable(true); // 전체 데이터가 표시되어 있었다면 전체 표시
+  } else {
+    renderTable(false); // 기본 상태 유지
+  }
+  
+  restoreFilterState();
+}
+  
+  // 현황 필드가 변경되었다면 현황번역 필드를 초기화
+  if (field === "현황") {
+    row.현황번역 = "";
+    if (!pendingRowUpdates.has(uid)) {
+      pendingRowUpdates.set(uid, {});
+    }
+    pendingRowUpdates.get(uid)["현황번역"] = "";
+    
+    // 번역 필드 UI 업데이트
+    const translationCell = e.target.closest('tr').querySelector('td[data-field="현황번역"] input');
+    if (translationCell) {
+      translationCell.value = "";
+    }
   }
 }
 
-// 일괄 업데이트 처리 함수
+// 실시간 저장을 비활성화한 processRowUpdates
 function processRowUpdates() {
+  // Firebase 업데이트를 하지 않고 pendingRowUpdates만 초기화
+  // 실제 저장은 saveAllData에서만 수행
   if (pendingRowUpdates.size === 0) return;
-
-  // 모든 업데이트를 일괄 처리하기 위한 객체
-  const updates = {};
   
-  // 각 행의 변경사항을 Firebase 경로로 변환
+  // modifiedRows에 추가
   pendingRowUpdates.forEach((fields, uid) => {
-    Object.entries(fields).forEach(([field, value]) => {
-      updates[`${asPath}/${uid}/${field}`] = value;
-    });
+    modifiedRows.add(uid);
   });
   
-  // 일괄 업데이트 수행
-  db.ref().update(updates)
-    .then(() => {
-      // console.log(`${pendingRowUpdates.size}개 행 업데이트 완료`);
-      pendingRowUpdates.clear();
-    })
-    .catch(err => {
-      console.error("행 업데이트 오류:", err);
-      // 오류 발생 시에도 기존 요청 초기화
-      pendingRowUpdates.clear();
-    });
+  // 대기 중인 업데이트 초기화
+  pendingRowUpdates.clear();
 }
 
-// 단일 선박 데이터 반영 함수 수정
+
+
+
+// 단일 선박 데이터 반영 함수 수정 - 성능 개선
 async function fetchAndUpdateVesselData(uid) {
   const row = asData.find(x => x.uid === uid);
   if (!row) {
@@ -1689,6 +3099,7 @@ async function fetchAndUpdateVesselData(uid) {
   try {
     // CORS 프록시 사용
     const corsProxy = "https://api.allorigins.win/raw?url=";
+    // STATUS 메서드를 직접 호출
     const targetUrl = `${g_apiConfig.baseUrl}?userkey=${g_apiConfig.apiKey}&imo=${imoNumber}`;
     const apiUrl = `${corsProxy}${encodeURIComponent(targetUrl)}`;
     
@@ -1764,6 +3175,7 @@ async function fetchAndUpdateVesselData(uid) {
     setTimeout(() => closeApiProgressModal(), 3000);
   }
 }
+
 // 전체 선박 데이터 반영
 async function refreshAllVessels() {
   // 관리자 비밀번호 확인
@@ -1797,8 +3209,6 @@ async function refreshAllVessels() {
   showApiProgressModal();
   clearApiProgressText();
   updateApiProgressText(`전체 ${vesselsWithImo.length}개 선박 데이터 업데이트 시작...`);
-
-  // 나머지 함수 코드...
   
   // 크레딧 확인
   try {
@@ -1931,7 +3341,9 @@ async function refreshAllVessels() {
     addHistory(`전체 선박 API 데이터 업데이트 (성공 ${successCount}건, 실패 ${errorCount}건)`);
     
     // 테이블 새로고침
+    saveFilterState();
     renderTable(true);
+    restoreFilterState();
     
     // 완료 메시지 (5초 후 닫기)
     setTimeout(() => closeApiProgressModal(), 5000);
@@ -1974,10 +3386,33 @@ function updateMultipleRowsInTable() {
   updateStatusCounts();
 }
 
+// 상태 카운트 업데이트 함수
+function updateStatusCounts() {
+  const counts = {
+    정상A: 0,
+    정상B: 0,
+    유상정상: 0,
+    부분동작: 0,
+    동작불가: 0
+  };
+  
+  // 현재 필터된 데이터 기준으로 카운트
+  lastRenderedData.forEach(row => {
+    if (counts.hasOwnProperty(row.동작여부)) {
+      counts[row.동작여부]++;
+    }
+  });
+  
+  // DOM 업데이트
+  Object.keys(counts).forEach(status => {
+    document.getElementById(`count${status}`).textContent = counts[status];
+  });
+}
+
 /** ==================================
  *  사이드바 및 필터 기능
  * ===================================*/
-// 사이드바 모드 전환 (담당자/선주사)
+// 사이드바 모드 전환 함수 개선
 function switchSideMode(mode) {
   currentMode = mode;
   document.getElementById('btnManager').classList.remove('active');
@@ -1998,16 +3433,21 @@ function switchSideMode(mode) {
   // 현재 모드에 맞게 버튼 활성화 및 제목 변경
   if (mode === 'manager') {
     document.getElementById('btnManager').classList.add('active');
-    document.getElementById('listTitle').textContent = '담당자 목록';
+    const managerLabel = translations[currentLanguage]['현 담당'] || '현 담당';
+    document.getElementById('listTitle').textContent = `${managerLabel} 목록`;
+    document.getElementById('sidebar').classList.remove('expanded');
   } else {
     document.getElementById('btnOwner').classList.add('active');
-    document.getElementById('listTitle').textContent = '선주사 목록';
+    const ownerLabel = translations[currentLanguage]['SHIPOWNER'] || 'SHIPOWNER';
+    document.getElementById('listTitle').textContent = `${ownerLabel} 목록`;
+    document.getElementById('sidebar').classList.add('expanded');
   }
+  
   updateSidebarList();
   renderTable(false);
 }
 
-// 사이드바 목록 업데이트 (최적화 버전)
+// 사이드바 업데이트 함수 개선
 function updateSidebarList() {
   const listDiv = document.getElementById('itemList');
   listDiv.innerHTML = '';
@@ -2035,8 +3475,8 @@ function updateSidebarList() {
       }
     });
     
-    // 전체 버튼 생성
-    appendSidebarButton(listDiv, '전체', allTotalCount, allProgressCount, () => {
+    // 전체 버튼 생성 - 현재 언어에 맞는 "전체" 텍스트 사용
+    appendSidebarButton(listDiv, translations[currentLanguage]['전체'] || '전체', allTotalCount, allProgressCount, () => {
       clearFilters();
       renderTable(true);
     });
@@ -2074,13 +3514,13 @@ function updateSidebarList() {
       }
     });
     
-    // 전체 버튼 생성
-    appendSidebarButton(listDiv, '전체', allTotalCount, allProgressCount, () => {
+    // 전체 버튼 생성 - 현재 언어에 맞는 "전체" 텍스트 사용
+    appendSidebarButton(listDiv, translations[currentLanguage]['전체'] || '전체', allTotalCount, allProgressCount, () => {
       clearFilters();
       renderTable(true);
     });
     
-    // 선주사별 버튼 생성 - 알파벳 순서로 정렬하되 한글은 영문자 뒤에 오도록 함
+    // 선주사별 버튼 생성
     const sortedOwners = Array.from(owMap.entries())
       .sort(([a], [b]) => {
         // 한글 감지 정규식
@@ -2105,7 +3545,7 @@ function updateSidebarList() {
   }
 }
 
-// 사이드바 버튼 생성 헬퍼 함수
+// 사이드바 버튼 생성 함수 개선
 function appendSidebarButton(container, label, total, progress, clickHandler) {
   const btn = document.createElement('button');
   btn.style.display = 'flex';
@@ -2115,13 +3555,36 @@ function appendSidebarButton(container, label, total, progress, clickHandler) {
   left.textContent = `${label}(${total})`;
   
   const right = document.createElement('span');
-  right.textContent = `AS진행(${progress})`;
+  // 현재 언어에 따라 "AS진행" 텍스트 변경
+  const asProgressText = translations[currentLanguage]["AS진행"] || "AS진행";
+  right.textContent = `${asProgressText}(${progress})`;
   
   btn.appendChild(left);
   btn.appendChild(right);
   btn.onclick = clickHandler;
   
   container.appendChild(btn);
+}
+
+// 언어 초기화 함수
+function initializeLanguage() {
+  // 이전에 선택한 언어 복원 (로컬 스토리지에서)
+  const savedLanguage = localStorage.getItem('selectedLanguage');
+  if (savedLanguage && translations[savedLanguage]) {
+    currentLanguage = savedLanguage;
+    
+    // 버튼 활성화 상태 업데이트
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      if (btn.getAttribute('data-lang') === savedLanguage) {
+        btn.classList.add('active');
+} else {
+        btn.classList.remove('active');
+      }
+    });
+  }
+  
+  // 초기 UI 언어 설정
+  updateUILanguage();
 }
 
 // 모든 필터 초기화
@@ -2136,6 +3599,10 @@ function clearFilters() {
   document.getElementById('filterAsType').value = '';
   document.getElementById('filterManager').value = '';
   document.getElementById('filterActive').value = '';
+  
+  // 필터 상태 초기화
+  currentFilterState = {};
+  isFilterActive = false;
 }
 
 /** ==================================
@@ -2345,6 +3812,7 @@ function handleColumnResize(e) {
     resizingCol.style.width = newWidth + 'px';
    }
 }
+
 // 열 크기 조절 종료
 function stopColumnResize() {
   document.removeEventListener('mousemove', handleColumnResize);
@@ -2402,7 +3870,7 @@ function downloadExcel() {
         '호선 대표메일': d.repMail, 'SHIP TYPE': d.shipType, SCALE: d.scale, 구분: d.구분,
         SHIPOWNER: d.shipowner, 주요선사: d.major, 그룹: d.group, SHIPYARD: d.shipyard,
         계약: d.contract, 'AS 구분': d.asType, 인도일: d.delivery, 보증종료일: d.warranty,
-        '전 담당': d.prevManager, '현 담당': d.manager, 현황: d.현황, 동작여부: d.동작여부,
+        '전 담당': d.prevManager, '현 담당': d.manager, 현황: d.현황, 현황번역: d.현황번역, 동작여부: d.동작여부,
         조치계획: d.조치계획, 접수내용: d.접수내용, 조치결과: d.조치결과,
         AS접수일자: d["AS접수일자"], 기술적종료일: d["기술적종료일"],
         정상지연: d["정상지연"], '지연 사유': d["지연 사유"]
@@ -2492,6 +3960,7 @@ function readExcelFile(file, mode) {
             prevManager: parseCell(r['전 담당']),
             manager: parseCell(r['현 담당']),
             현황: parseCell(r['현황']),
+            현황번역: parseCell(r['현황번역']), // 현황번역 필드 추가
             동작여부: parseCell(r['동작여부']) || '정상A',
             조치계획: parseCell(r['조치계획']),
             접수내용: parseCell(r['접수내용']),
@@ -2713,12 +4182,16 @@ function readAsStatusFile(file) {
             row["기술적종료일"] = parseDateString(item.tEnd);
             row["AS접수일자"] = dateToYMD(item.asDate);
             
+            // 현황번역 필드 초기화 (현황이 변경되었을 수 있으므로)
+            row["현황번역"] = "";
+            
             // Firebase 업데이트 준비
             updates[`${asPath}/${row.uid}/조치계획`] = row.조치계획;
             updates[`${asPath}/${row.uid}/접수내용`] = row.접수내용;
             updates[`${asPath}/${row.uid}/조치결과`] = row.조치결과;
             updates[`${asPath}/${row.uid}/기술적종료일`] = row["기술적종료일"];
             updates[`${asPath}/${row.uid}/AS접수일자`] = row["AS접수일자"];
+            updates[`${asPath}/${row.uid}/현황번역`] = "";
             
             updateCount++;
           }
@@ -2728,7 +4201,12 @@ function readAsStatusFile(file) {
         db.ref().update(updates)
           .then(() => {
             addHistory(`AS 현황 업로드 - 총 ${updateCount}건 접수/조치정보 갱신`);
+            
+            // 필터 상태 저장 및 복원
+            saveFilterState();
             renderTable(true);
+            restoreFilterState();
+            
             document.body.removeChild(loadingEl);
             alert(`AS 현황 업로드 완료 (총 ${updateCount}건 업데이트)`);
           })
@@ -2776,7 +4254,7 @@ function dateToYMD(ms) {
 /** ==================================
  *  AI 요약 기능
  * ===================================*/
-// (1) 행 단위 요약
+// (1) 행 단위 요약 - 성능 개선
 async function summarizeAndUpdateRow(uid) {
   const row = asData.find(r => r.uid === uid);
   if (!row) {
@@ -2805,10 +4283,16 @@ async function summarizeAndUpdateRow(uid) {
     
     // 로컬 데이터 및 Firebase 업데이트
     row.현황 = summary;
-    await db.ref(`${asPath}/${uid}/현황`).set(summary);
+    row.현황번역 = ""; // 현황이 변경되었으므로 번역 초기화
+    await db.ref(`${asPath}/${uid}`).update({
+      현황: summary,
+      현황번역: ""
+    });
+    
+    // 단일 행만 업데이트 (전체 렌더링 방지)
+    updateSingleRowInTable(uid, { 현황: summary, 현황번역: "" });
     
     addHistory(`AI 요약 완료 - [${uid}] 현황 업데이트`);
-    renderTable(true);
     alert("AI 요약 결과가 '현황' 필드에 반영되었습니다.");
   } catch (err) {
     console.error("AI 요약 오류:", err);
@@ -2816,6 +4300,23 @@ async function summarizeAndUpdateRow(uid) {
   } finally {
     closeAiProgressModal();
   }
+}
+
+// 단일 행 UI 업데이트 함수
+function updateSingleRowInTable(uid, updates) {
+  const checkbox = document.querySelector(`.rowSelectChk[data-uid="${uid}"]`);
+  if (!checkbox) return;
+  
+  const tr = checkbox.closest('tr');
+  if (!tr) return;
+  
+  // 필요한 필드만 업데이트
+  Object.entries(updates).forEach(([field, value]) => {
+    const cell = tr.querySelector(`td[data-field="${field}"] input`);
+    if (cell) {
+      cell.value = value || '';
+    }
+  });
 }
 
 // (2) 히스토리 AI 요약
