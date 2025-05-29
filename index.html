@@ -110,6 +110,13 @@
 <div class="header">
   <div class="header-left">
     <h1>AS 현황 관리</h1>
+    <!-- 언어 선택 버튼 추가 -->
+    <div class="language-selector">
+      <button data-lang="ko" class="lang-btn active">한국어</button>
+      <button data-lang="en" class="lang-btn">English</button>
+      <button data-lang="zh" class="lang-btn">中文</button>
+      <button data-lang="ja" class="lang-btn">日本語</button>
+    </div>
   </div>
   <div class="header-right">
     <div id="userInfo">사용자: <span id="currentUserName">-</span></div>
@@ -240,6 +247,7 @@
             <th data-field="prevManager">전 담당<div class="col-resizer"></div></th>
             <th data-field="manager">현 담당<div class="col-resizer"></div></th>
             <th data-field="현황">현황<div class="col-resizer"></div></th>
+            <th data-field="현황번역">현황 번역<div class="col-resizer"></div></th>
             <!-- AI 요약(단일행) -->
             <th>AI 요약</th>
             <th data-field="동작여부">동작여부<div class="col-resizer"></div></th>
@@ -273,6 +281,7 @@
       <button id="uploadAsStatusBtn">AS 현황 업로드</button>
       <button id="historyBtn">히스토리 조회</button>
       <button id="clearHistoryBtn">히스토리 전체 삭제</button>
+      <button id="translateBtn" style="background:#5d6d7e;">현황 번역</button>
       <!-- (추가) 선사별 AI 요약 버튼 -->
       <button id="ownerAISummaryBtn" style="background:#6c757d;">선사별 AI 요약</button>
       <!-- (추가) API 전체 반영 버튼 -->
@@ -416,7 +425,7 @@
     </div>
   </div>
 
-  <!-- (신규) AI 실시간 진행 상황 표시 모달 -->
+  <!-- (신규) AI 실시간 진행 상황 표시 모달 -->a
   <div id="aiProgressModal">
     <div class="modal-content">
       <span class="close" onclick="document.getElementById('aiProgressModal').style.display='none';">&times;</span>
