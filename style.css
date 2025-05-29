@@ -12,9 +12,14 @@
   --api-color: #28a745;
 }
 
-* { box-sizing: border-box; margin:0; padding:0; }
+* { 
+  box-sizing: border-box; 
+  margin: 0; 
+  padding: 0; 
+}
+
 body {
-  font-family: sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: var(--font-size-base);
   display: flex; 
   height: 100vh; 
@@ -22,127 +27,363 @@ body {
   background: var(--background-color); 
   color: var(--text-color);
 }
+
 .hidden { display: none; }
 
 /* 로그인 모달 */
 #loginModal {
-  display:block; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%;
-  background:rgba(0,0,0,0.3);
-}
-#loginModal .modal-content {
-  background:#fff; margin:10% auto; width:300px; border-radius:6px;
-  padding:10px; position:relative;
-}
-#loginModal h2 { margin:0 0 10px; }
-#loginModal .form-group { margin-bottom:8px; }
-#loginModal .form-group label { font-weight:600; margin-bottom:2px; display:block; }
-#loginModal .form-group input {
-  width:100%; padding:6px; border:1px solid #ccc; border-radius:4px;
-}
-#loginModal .btn-row {
-  display:flex; justify-content:flex-end; gap:8px; margin-top:10px;
-}
-#loginModal button {
-  background:var(--primary-color); color:#fff; border:none; border-radius:4px;
-  cursor:pointer; font-size:0.85em; padding:6px 10px;
+  display: block; 
+  position: fixed; 
+  z-index: 9999; 
+  left: 0; 
+  top: 0; 
+  width: 100%; 
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
 }
 
+#loginModal .modal-content {
+  background: #fff; 
+  margin: 10% auto; 
+  width: 300px; 
+  border-radius: 6px;
+  padding: 20px; 
+  position: relative;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+#loginModal h2 { 
+  margin: 0 0 15px; 
+  font-size: 1.4em;
+  color: var(--primary-color);
+}
+
+#loginModal .form-group { 
+  margin-bottom: 12px; 
+}
+
+#loginModal .form-group label { 
+  font-weight: 600; 
+  margin-bottom: 4px; 
+  display: block; 
+  font-size: 0.9em;
+}
+
+#loginModal .form-group input {
+  width: 100%; 
+  padding: 8px 12px; 
+  border: 1px solid #ccc; 
+  border-radius: 4px;
+  font-size: 0.95em;
+  transition: border-color 0.2s;
+}
+
+#loginModal .form-group input:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(49, 91, 138, 0.1);
+}
+
+#loginModal .btn-row {
+  display: flex; 
+  justify-content: flex-end; 
+  gap: 8px; 
+  margin-top: 15px;
+}
+
+#loginModal button {
+  background: var(--primary-color); 
+  color: #fff; 
+  border: none; 
+  border-radius: 4px;
+  cursor: pointer; 
+  font-size: 0.9em; 
+  padding: 8px 16px;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+#loginModal button:hover {
+  background: #264c70;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 사이드바 */
 .sidebar {
   width: 240px; 
   background: linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-bg2) 100%);
-  padding: 10px; 
+  padding: 15px; 
   overflow-y: auto;
-  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-  transition: width 0.3s ease; /* 이 한 줄만 추가 */
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  transition: width 0.3s ease;
 }
 
-/* 이 스타일만 추가 */
 .sidebar.expanded {
-  width: 288px; /* 240px의 120% */
+  width: 288px;
 }
+
 .sidebar .mode-buttons {
-  display: flex; gap: 5px; margin-bottom: 10px;
+  display: flex; 
+  gap: 5px; 
+  margin-bottom: 15px;
 }
+
 .sidebar button {
-  display: block; width: 100%; padding: 8px; margin-bottom: 5px;
-  background: var(--sidebar-btn); color: #fff;
-  border: none; border-radius: 4px; cursor: pointer; font-size: 0.95em;
-  transition: 0.2s all; text-align: left;
+  display: block; 
+  width: 100%; 
+  padding: 10px; 
+  margin-bottom: 5px;
+  background: var(--sidebar-btn); 
+  color: #fff;
+  border: none; 
+  border-radius: 4px; 
+  cursor: pointer; 
+  font-size: 0.95em;
+  transition: 0.2s all; 
+  text-align: left;
+  font-weight: 500;
 }
+
 .sidebar button:hover {
-  background: #2b4f7a; transform: translateY(-2px);
+  background: #2b4f7a; 
+  transform: translateX(3px);
 }
+
+.sidebar button.active {
+  background: #4a7ba7;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 .sidebar h3 {
-  color:#fff; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.3);
-  font-size:1em; font-weight:600; padding-bottom:4px;
+  color: #fff; 
+  margin-bottom: 10px; 
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 1.1em; 
+  font-weight: 600; 
+  padding-bottom: 6px;
 }
-.sidebar .item-list { display: flex; flex-direction: column; gap:4px; }
-.sidebar .bottom-area { margin-top: 20px; }
+
+.sidebar .item-list { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 4px; 
+}
+
+.sidebar .bottom-area { 
+  margin-top: 20px; 
+  padding-top: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 .user-manage-btn {
-  background:#6c757d;
+  background: #6c757d;
 }
+
 .user-manage-btn:hover {
-  background:#5a6268;
+  background: #5a6268;
 }
 
-/* 메인 */
+/* 메인 컨테이너 */
 .container {
-  flex:1; display:flex; flex-direction:column; overflow:hidden;
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+  overflow: hidden;
 }
+
 .header {
-  background:#fff; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.1);
+  background: #fff; 
+  padding: 12px 20px; 
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.header h1 { font-size:1.2em; color:var(--primary-color); }
-#connectionStatus { font-weight:bold; margin-top:5px; }
 
-/* 상태 집계 */
+.header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.header h1 { 
+  font-size: 1.4em; 
+  color: var(--primary-color); 
+  margin: 0;
+}
+
+#connectionStatus { 
+  font-weight: 500; 
+  font-size: 0.85em;
+  color: #666;
+}
+
+#userInfo {
+  font-size: 0.9em;
+  color: #555;
+}
+
+#currentUserName {
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+#logoutBtn {
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+  padding: 6px 12px;
+  transition: 0.2s all;
+}
+
+#logoutBtn:hover {
+  background: #2b4f7a;
+}
+
+/* 상태 집계 카드 */
 .status-summary {
-  display:flex; gap: 10px; padding: 5px;
-  background: #fff; border-bottom:1px solid var(--border-color);
+  display: flex; 
+  gap: 10px; 
+  padding: 10px 15px;
+  background: #fff; 
+  border-bottom: 1px solid var(--border-color);
 }
-.status-card {
-  background:#fafafa; border:1px solid var(--border-color); border-radius:4px;
-  padding:4px 6px; flex:1; text-align:center;
-}
-.status-card h3 { font-size:0.9em; margin-bottom:3px; }
-.status-card .count { font-weight:bold; font-size:1em; }
 
-/* 필터 */
+.status-card {
+  background: #fafafa; 
+  border: 1px solid var(--border-color); 
+  border-radius: 4px;
+  padding: 8px 12px; 
+  flex: 1; 
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.status-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.status-card h3 { 
+  font-size: 0.9em; 
+  margin-bottom: 4px; 
+  color: #666;
+}
+
+.status-card .count { 
+  font-weight: bold; 
+  font-size: 1.2em; 
+  color: var(--primary-color);
+}
+
+/* 필터 영역 */
 .filters {
-  display:flex; flex-wrap:wrap; gap:10px; padding:5px;
-  background:#fafafa; border-bottom:1px solid var(--border-color);
+  display: flex; 
+  flex-wrap: wrap; 
+  gap: 10px; 
+  padding: 10px 15px;
+  background: #fafafa; 
+  border-bottom: 1px solid var(--border-color);
   align-items: flex-end;
 }
+
 .filters .filter-group {
-  display:flex; flex-direction:column; font-size:0.9em;
+  display: flex; 
+  flex-direction: column; 
+  font-size: 0.9em;
 }
-.filters label { font-weight:600; margin-bottom:2px; }
-.filters input, .filters select {
-  padding:4px; border:1px solid var(--border-color); border-radius:4px;
-  font-size:0.9em; width:120px;
+
+.filters label { 
+  font-weight: 600; 
+  margin-bottom: 4px; 
+  color: #555;
+  font-size: 0.85em;
+}
+
+.filters input, 
+.filters select {
+  padding: 6px 8px; 
+  border: 1px solid var(--border-color); 
+  border-radius: 4px;
+  font-size: 0.9em; 
+  width: 120px;
+  transition: border-color 0.2s;
+}
+
+.filters input:focus, 
+.filters select:focus {
+  border-color: var(--primary-color);
+  outline: none;
 }
 
 /* 테이블 영역 */
 .table-container {
-  flex:1; overflow:auto; background:#fff; margin:0; padding:0;
-  border-top:1px solid var(--border-color); position:relative;
+  flex: 1; 
+  overflow: auto; 
+  background: #fff; 
+  margin: 0; 
+  padding: 0;
+  border-top: 1px solid var(--border-color); 
+  position: relative;
 }
+
 table {
-  border-collapse: separate; border-spacing: 0; width:100%;
-  min-width: 2000px; font-size:var(--font-size-base);
+  border-collapse: separate; 
+  border-spacing: 0; 
+  width: 100%;
+  min-width: 2000px; 
+  font-size: var(--font-size-base);
 }
+
 th, td {
-  border:1px solid var(--border-color);
-  padding:6px; text-align:left; position:relative;
+  border: 1px solid var(--border-color);
+  padding: 8px; 
+  text-align: left; 
+  position: relative;
   transition: background 0.2s;
   vertical-align: top;
   white-space: nowrap;
 }
+
 th {
-  background:var(--primary-color); color:#fff; font-weight:500;
-  position:sticky; top:0; z-index:10; user-select:none; cursor:default;
+  background: var(--primary-color); 
+  color: #fff; 
+  font-weight: 600;
+  position: sticky; 
+  top: 0; 
+  z-index: 10; 
+  user-select: none; 
+  cursor: pointer;
 }
-tr:hover td { background:var(--highlight-color); }
+
+th:hover {
+  background-color: #264c70;
+}
+
+tr:hover td { 
+  background: var(--highlight-color); 
+}
+
+/* 정렬 표시기 */
+.sort-indicator {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 0.8em;
+}
+
+th[data-field] {
+  padding-right: 20px;
+}
 
 /* API 관련 스타일 */
 td[data-field="api_name"] input,
@@ -159,164 +400,870 @@ th[data-field="api_manager"] {
   background-color: var(--api-color);
 }
 
-#apiRefreshAllBtn {
-  background: var(--api-color);
-  font-weight: bold;
+/* 행 높이 조절 */
+.row-resizer {
+  position: absolute; 
+  left: 0; 
+  bottom: 0; 
+  width: 100%; 
+  height: 5px;
+  background: rgba(0, 0, 0, 0.1); 
+  cursor: row-resize;
+  opacity: 0; 
+  transition: 0.2s;
 }
 
-#apiRefreshAllBtn:hover {
-  background: #218838;
+tr:hover .row-resizer { 
+  opacity: 1; 
 }
 
-/* API 진행 상황 모달 */
-#apiProgressModal {
-  display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%;
-  background:rgba(0,0,0,0.3);
+/* 열 폭 조절 */
+.col-resizer {
+  position: absolute; 
+  right: 0; 
+  top: 0; 
+  width: 5px; 
+  height: 100%;
+  cursor: col-resize; 
+  user-select: none;
 }
-#apiProgressModal .modal-content {
-  background:#fff; margin:10% auto; width:600px; border-radius:6px; padding:10px; position:relative;
+
+.col-resizer:hover { 
+  background: rgba(255, 255, 255, 0.3); 
 }
-#apiProgressModal .close {
-  position:absolute; right:10px; top:10px; font-size:18px; cursor:pointer;
+
+/* 하단 버튼 영역 */
+.bottom-controls {
+  display: flex; 
+  flex-wrap: wrap; 
+  gap: 8px; 
+  padding: 10px 15px;
+  background: #fff; 
+  border-top: 1px solid var(--border-color);
 }
-#apiProgressText {
-  width:100%; height:200px; border:1px solid #ccc; border-radius:6px;
-  padding:6px; overflow-y:auto; white-space:pre-wrap; margin-top:10px;
-  font-family: monospace;
+
+.bottom-controls button {
+  background: var(--primary-color); 
+  color: #fff; 
+  border: none;
+  border-radius: 4px; 
+  cursor: pointer; 
+  font-size: 0.9em;
+  padding: 8px 14px; 
+  transition: 0.2s all;
+  font-weight: 500;
+}
+
+.bottom-controls button:hover {
+  background: #2b4f7a; 
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 모달 공통 스타일 */
+.modal-background {
+  display: none; 
+  position: fixed; 
+  z-index: 9999; 
+  left: 0; 
+  top: 0; 
+  width: 100%; 
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.modal-content {
+  background: #fff; 
+  margin: 5% auto; 
+  border-radius: 8px;
+  position: relative; 
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-content .close,
+.modal-close {
+  position: absolute; 
+  right: 15px; 
+  top: 15px; 
+  font-size: 24px; 
+  cursor: pointer;
+  color: #999;
+  transition: color 0.2s;
+}
+
+.modal-content .close:hover,
+.modal-close:hover {
+  color: #333;
+}
+
+/* 히스토리 모달 */
+#historyModal {
+  display: none; 
+  position: fixed; 
+  z-index: 9999; 
+  left: 0; 
+  top: 0; 
+  width: 100%; 
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+#historyModal .modal-content {
+  background: #fff; 
+  margin: 5% auto; 
+  width: 80%; 
+  max-width: 1000px; 
+  border-radius: 8px;
+  max-height: 80%; 
+  overflow-y: auto; 
+  position: relative; 
+  padding: 20px;
+}
+
+#historyModal h2 { 
+  margin-top: 0; 
+  margin-bottom: 15px; 
+  font-size: 1.3em; 
+  color: var(--primary-color);
+}
+
+#historyModal .history-list { 
+  list-style: disc; 
+  margin-left: 25px; 
+  line-height: 1.6;
+}
+
+/* 사용자 관리 모달 */
+#userModal {
+  display: none; 
+  position: fixed; 
+  z-index: 9999; 
+  left: 0; 
+  top: 0; 
+  width: 100%; 
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+#userModal .modal-content {
+  background: #fff; 
+  margin: 5% auto; 
+  width: 400px; 
+  border-radius: 6px;
+  padding: 20px; 
+  position: relative;
+}
+
+#userModal h2, 
+#userModal h3 { 
+  margin: 0 0 10px; 
+  font-size: 1.2em; 
+  color: var(--primary-color);
+}
+
+#userModal .form-group { 
+  margin-bottom: 10px; 
+}
+
+#userModal .form-group label { 
+  display: block; 
+  font-weight: 600; 
+  margin-bottom: 4px; 
+}
+
+#userModal input[type="text"], 
+#userModal input[type="password"] {
+  width: 100%; 
+  padding: 8px; 
+  border: 1px solid #ccc; 
+  border-radius: 4px;
+}
+
+#userModal .btn-row {
+  display: flex; 
+  gap: 8px; 
+  justify-content: flex-end; 
+  margin-top: 15px;
+}
+
+#userModal .btn-row button {
+  background: var(--primary-color); 
+  color: #fff; 
+  border: none; 
+  border-radius: 4px;
+  cursor: pointer; 
+  font-size: 0.9em; 
+  padding: 8px 14px;
 }
 
 /* API 설정 모달 */
 #apiConfigModal {
-  display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%;
-  background:rgba(0,0,0,0.3);
+  display: none; 
+  position: fixed; 
+  z-index: 9999; 
+  left: 0; 
+  top: 0; 
+  width: 100%; 
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
 }
+
 #apiConfigModal .modal-content {
-  background:#fff; margin:5% auto; width:500px; border-radius:6px;
-  padding:15px; position:relative;
+  background: #fff; 
+  margin: 5% auto; 
+  width: 500px; 
+  border-radius: 6px;
+  padding: 20px; 
+  position: relative;
 }
-#apiConfigModal .close {
-  position:absolute; right:15px; top:15px; font-size:18px; cursor:pointer;
-}
+
 #apiConfigModal h2 {
-  margin:0 0 15px; font-size:1.2em; color: var(--api-color);
+  margin: 0 0 15px; 
+  font-size: 1.3em; 
+  color: var(--api-color);
 }
+
 #apiConfigModal h3 {
-  margin:10px 0; font-size:1em;
+  margin: 15px 0 10px; 
+  font-size: 1.1em;
 }
+
 #apiConfigModal .form-group {
-  margin-bottom:12px;
+  margin-bottom: 15px;
 }
+
 #apiConfigModal .form-group label {
-  display:block; font-weight:600; margin-bottom:5px;
+  display: block; 
+  font-weight: 600; 
+  margin-bottom: 5px;
 }
+
 #apiConfigModal input[type="text"] {
-  width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;
+  width: 100%; 
+  padding: 10px; 
+  border: 1px solid #ccc; 
+  border-radius: 4px;
 }
-#apiConfigModal .btn-row {
-  display:flex; gap:8px; justify-content:flex-end; margin-top:15px;
-}
+
 #apiConfigModal button {
-  background:var(--api-color); color:#fff; border:none; border-radius:4px;
-  cursor:pointer; font-size:0.9em; padding:8px 12px;
+  background: var(--api-color); 
+  color: #fff; 
+  border: none; 
+  border-radius: 4px;
+  cursor: pointer; 
+  font-size: 0.9em; 
+  padding: 10px 16px;
 }
+
 #apiConfigModal button:hover {
   background: #218838;
 }
+
 #apiCreditStatus {
   margin-top: 10px;
-  padding: 10px;
+  padding: 12px;
   background: #f8f9fa;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 0.9em;
 }
 
-/* 행 높이 조절 */
-.row-resizer {
-  position: absolute; left:0; bottom:0; width:100%; height:5px;
-  background:rgba(0,0,0,0.1); cursor:row-resize;
-  opacity:0; transition:0.2s;
-}
-tr:hover .row-resizer { opacity:1; }
-
-/* 열 폭 조절 */
-.col-resizer {
-  position:absolute; right:0; top:0; width:5px; height:100%;
-  cursor:col-resize; user-select:none;
-}
-.col-resizer:hover { background:rgba(255,255,255,0.3); }
-
-/* 하단 버튼 */
-.bottom-controls {
-  display:flex; flex-wrap:wrap; gap:8px; padding:8px;
-  background:#fff; border-top:1px solid var(--border-color);
-}
-.bottom-controls button {
-  background:var(--primary-color); color:#fff; border:none;
-  border-radius:4px; cursor:pointer; font-size:0.9em;
-  padding:6px 10px; transition:0.2s all;
-}
-.bottom-controls button:hover {
-  background:#2b4f7a; transform: translateY(-2px);
+/* AI 설정 관리 모달 */
+#aiConfigModal {
+  display: none; 
+  position: fixed; 
+  z-index: 9999; 
+  left: 0; 
+  top: 0; 
+  width: 100%; 
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
 }
 
-/* 히스토리 모달 */
-#historyModal {
-  display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%;
-  background:rgba(0,0,0,0.3);
+#aiConfigModal .modal-content {
+  background: #fff; 
+  margin: 3% auto; 
+  width: 600px; 
+  border-radius: 6px;
+  padding: 20px; 
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
 }
-#historyModal .modal-content {
-  background:#fff; margin:5% auto; width:80%; max-width:1000px; border-radius:8px;
-  max-height:80%; overflow-y:auto; position:relative; padding:10px;
-}
-#historyModal .close {
-  position:absolute; right:15px; top:10px; font-size:18px; cursor:pointer;
-}
-#historyModal h2 { margin-top:0; margin-bottom:5px; font-size:1em; }
-#historyModal .history-list { list-style:disc; margin-left:25px; }
 
-/* 사용자 관리 모달 */
-#userModal {
-  display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%;
-  background:rgba(0,0,0,0.3);
+#aiConfigModal h2 {
+  margin: 0 0 15px; 
+  font-size: 1.3em;
+  color: var(--primary-color);
 }
-#userModal .modal-content {
-  background:#fff; margin:5% auto; width:400px; border-radius:6px;
-  padding:10px; position:relative;
+
+#aiConfigModal h3 {
+  margin: 20px 0 10px;
+  font-size: 1.1em;
+  color: #555;
 }
-#userModal .close { position:absolute; right:10px; top:10px; cursor:pointer; font-size:18px; }
-#userModal h2 { margin:0 0 10px; font-size:1em; }
-#userModal .form-group { margin-bottom:8px; }
-#userModal .form-group label { display:block; font-weight:600; margin-bottom:2px; }
-#userModal input[type="text"], #userModal input[type="password"] {
-  width:100%; padding:6px; border:1px solid #ccc; border-radius:4px;
+
+#aiConfigModal .form-group {
+  margin-bottom: 15px;
 }
-#userModal .btn-row {
-  display:flex; gap:8px; justify-content:flex-end; margin-top:10px;
+
+#aiConfigModal .form-group label {
+  display: block; 
+  font-weight: 600; 
+  margin-bottom: 5px;
 }
-#userModal .btn-row button {
-  background:var(--primary-color); color:#fff; border:none; border-radius:4px;
-  cursor:pointer; font-size:0.85em; padding:6px 10px;
+
+#aiConfigModal input[type="text"], 
+#aiConfigModal select, 
+#aiConfigModal textarea {
+  width: 100%; 
+  padding: 10px; 
+  border: 1px solid #ccc; 
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+
+#aiConfigModal textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+#aiConfigModal button {
+  background: var(--primary-color); 
+  color: #fff; 
+  border: none; 
+  border-radius: 4px;
+  cursor: pointer; 
+  font-size: 0.9em; 
+  padding: 10px 16px;
+}
+
+/* AI/API 진행 상황 모달 */
+#aiProgressModal,
+#apiProgressModal {
+  display: none; 
+  position: fixed; 
+  z-index: 9999; 
+  left: 0; 
+  top: 0; 
+  width: 100%; 
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+#aiProgressModal .modal-content,
+#apiProgressModal .modal-content {
+  background: #fff; 
+  margin: 10% auto; 
+  width: 600px; 
+  border-radius: 6px; 
+  padding: 20px; 
+  position: relative;
+}
+
+#aiProgressText,
+#apiProgressText {
+  width: 100%; 
+  height: 200px; 
+  border: 1px solid #ccc; 
+  border-radius: 6px;
+  padding: 10px; 
+  overflow-y: auto; 
+  white-space: pre-wrap; 
+  margin-top: 10px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+  background: #f8f9fa;
+}
+
+/* 내용 보기 모달 */
+#contentModal {
+  display: none; 
+  position: fixed; 
+  z-index: 9999; 
+  left: 0; 
+  top: 0; 
+  width: 100%; 
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+#contentModal .modal-content {
+  background: #fff; 
+  margin: 5% auto; 
+  width: 700px; 
+  border-radius: 6px;
+  padding: 20px; 
+  position: relative; 
+  max-height: 90%;
+  overflow-y: auto;
+}
+
+#contentModal h2 {
+  margin-top: 0; 
+  margin-bottom: 15px; 
+  font-size: 1.3em;
+  color: var(--primary-color);
+}
+
+#contentText {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  font-size: 0.95em;
+  max-height: 500px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  padding: 12px;
+  border-radius: 4px;
+  background: #f8f9fa;
+}
+
+/* 마크다운 표 스타일 */
+#contentText table,
+#ownerAISummaryText table {
+  border-collapse: collapse;
+  margin: 10px 0;
+  width: 100%;
+}
+
+#contentText th, 
+#contentText td,
+#ownerAISummaryText th,
+#ownerAISummaryText td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: left;
+}
+
+#contentText th,
+#ownerAISummaryText th {
+  background: #f0f0f0;
+  font-weight: 600;
+}
+
+/* 전체화면 모달 스타일 */
+#contentModal.fullscreen,
+#ownerAIModal.fullscreen,
+#managerStatusModal.fullscreen {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+#contentModal.fullscreen .modal-content,
+#ownerAIModal.fullscreen .modal-content,
+#managerStatusModal.fullscreen .modal-content {
+  width: 100% !important; 
+  height: 100% !important;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0 !important;
+  border-radius: 0;
+  overflow: auto;
+}
+
+/* 선사별 AI 요약 모달 */
+#ownerAIModal {
+  display: none; 
+  position: fixed; 
+  z-index: 9999; 
+  left: 0; 
+  top: 0; 
+  width: 100%; 
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+#ownerAIModal .modal-content {
+  background: #fff; 
+  margin: 5% auto; 
+  width: 1000px; 
+  border-radius: 6px;
+  padding: 20px; 
+  position: relative; 
+  max-height: 85%; 
+  overflow-y: auto;
+}
+
+#ownerAISummaryText {
+  overflow-x: auto;
+  line-height: 1.8;
+  font-size: 0.95em;
+}
+
+/* 비밀번호 관련 모달 */
+#forgotPasswordModal,
+#changePasswordModal {
+  display: none;
+  position: fixed;
+  z-index: 10000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  overflow: auto;
+}
+
+#forgotPasswordModal .modal-content,
+#changePasswordModal .modal-content {
+  background-color: #fff;
+  margin: 10% auto;
+  padding: 25px;
+  border-radius: 8px;
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+#forgotPasswordModal h2,
+#changePasswordModal h2 {
+  margin: 0 0 20px 0;
+  color: var(--primary-color);
+  font-size: 1.4em;
+}
+
+#forgotPasswordModal p,
+#changePasswordModal p {
+  margin-bottom: 20px;
+  color: #555;
+  font-size: 0.95em;
+  line-height: 1.5;
+}
+
+#forgotPasswordModal .form-group,
+#changePasswordModal .form-group {
+  margin-bottom: 18px;
+}
+
+#forgotPasswordModal .form-group label,
+#changePasswordModal .form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: #333;
+}
+
+#forgotPasswordModal .form-group input,
+#changePasswordModal .form-group input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1em;
+  transition: border-color 0.2s;
+}
+
+#forgotPasswordModal .form-group input:focus,
+#changePasswordModal .form-group input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(49, 91, 138, 0.2);
+  outline: none;
+}
+
+#forgotPasswordModal .btn-row,
+#changePasswordModal .btn-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 25px;
+}
+
+#forgotPasswordModal button,
+#changePasswordModal button {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95em;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+#forgotPasswordModal button:first-child,
+#changePasswordModal button:first-child {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+#forgotPasswordModal button:first-child:hover,
+#changePasswordModal button:first-child:hover {
+  background-color: #264c70;
+}
+
+#forgotPasswordModal button:last-child,
+#changePasswordModal button:last-child {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+#forgotPasswordModal button:last-child:hover,
+#changePasswordModal button:last-child:hover {
+  background-color: #d0d0d0;
+}
+
+#changePasswordStatus,
+#resetEmailStatus {
+  margin-top: 15px;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+#changePasswordStatus.success,
+#resetEmailStatus.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+#changePasswordStatus.error,
+#resetEmailStatus.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+/* 비밀번호 찾기 링크 */
+.forgot-pw-link {
+  text-align: right;
+  margin-top: 5px;
+  font-size: 0.85em;
+}
+
+.forgot-pw-link a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.forgot-pw-link a:hover {
+  text-decoration: underline;
+}
+
+/* 로그인 오류 메시지 */
+#loginError {
+  color: #e74c3c;
+  margin-top: 10px;
+  font-size: 0.85em;
+  animation: fadeIn 0.3s ease-in-out;
+  padding: 5px 0;
+  font-weight: 500;
+}
+
+#loginError:empty {
+  padding: 0;
+  margin: 0;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 담당자별 현황 모달 */
+/* 담당자별 현황 모달 */
+#managerStatusModal {
+  display: none;
+  position: fixed;
+  z-index: 9999;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+#managerStatusModal 
+ .modal-content{
+  width:90%;          /* fit-content → 90% */
+  max-width:800px;    /* 필요 시 추가 */
+}
+
+#managerStatusModal h2 {
+  margin-top: 0;
+  margin-bottom: 15px; /* 20px에서 15px로 축소 */
+  color: var(--primary-color);
+  font-size: 1.4em;
+}
+
+/* 2) 테이블은 고정 레이아웃 + 100% */
+.manager-status-table{
+  table-layout:fixed; /* auto → fixed  */
+  width:50%;         /* 남는 공간에 맞춰 재분배 */
+  white-space:nowrap; /* 유지해도 OK */
+}
+
+/* 3) 셀에 최대 폭을 부여해 ellipsis 활성화 */
+.manager-status-table th,
+.manager-status-table td{
+  max-width:120px;    /* 열별로 값 조정 */
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* 기존의 width 설정 모두 제거하고 text-align만 유지 */
+.manager-status-table th:nth-child(2),
+.manager-status-table td:nth-child(2),
+.manager-status-table th:nth-child(3),
+.manager-status-table td:nth-child(3),
+.manager-status-table th:nth-child(4),
+.manager-status-table td:nth-child(4),
+.manager-status-table th:nth-child(5),
+.manager-status-table td:nth-child(5) {
+  text-align: center !important;
+}
+
+/* 경과일 열만 굵게 */
+.manager-status-table td:nth-child(5) {
+  font-weight: bold;
+}
+
+
+/* 테이블 헤더 스타일 */
+.manager-status-table th {
+  background-color: #f8f9fa;
+  font-weight: 700;
+  color: #495057;
+  font-size: 0.75em; /* 0.7em에서 0.75em으로 약간 증가 */
+  padding: 4px 6px !important;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* 테이블 내용 */
+.manager-status-table td {
+  font-size: 0.75em; /* 0.7em에서 0.75em으로 약간 증가 */
+  line-height: 1.3;
+}
+
+/* 홀수/짝수 행 배경색 */
+.manager-status-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.manager-status-table tr:hover {
+  background-color: #e8f4ff;
+  cursor: pointer;
+}
+
+/* 전체화면 모드에서의 테이블 조정 */
+#managerStatusModal.fullscreen .manager-status-table {
+  font-size: 1em !important;
+}
+
+#managerStatusModal.fullscreen .manager-status-table th,
+#managerStatusModal.fullscreen .manager-status-table td {
+  padding: 8px 12px !important;
+  width: auto !important;
+}
+
+/* 정렬 선택 박스 */
+#managerStatusSort {
+  padding: 4px 8px; /* 6px 12px에서 축소 */
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.85em; /* 0.9em에서 축소 */
+  margin-bottom: 10px; /* 15px에서 축소 */
+}
+
+/* 담당자별 현황 버튼 */
+#managerStatusBtn {
+  background: #ff6b6b;
+  color: white;
+  font-weight: 600;
+}
+
+#managerStatusBtn:hover {
+  background: #fa5252;
+}
+
+/* 테이블 컨테이너 여백 제거 */
+#managerStatusList {
+  max-height: 600px;
+  overflow-y: auto;
+  padding: 0; /* 패딩 제거 */
+  margin: 0; /* 마진 제거 */
+}
+
+/* 일정 확인 버튼 */
+#scheduleCheckBtn {
+  background: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: 0.2s all;
+  margin-left: 10px;
+}
+
+#scheduleCheckBtn:hover {
+  background: #138496;
 }
 
 /* 엑셀 업로드 모달 */
 #excelModal {
-  display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%;
-  background:rgba(0,0,0,0.3);
-}
-#excelModal .modal-content {
-  background:#fff; margin:10% auto; width:300px; border-radius:6px; padding:10px; position:relative;
-  text-align:center;
-}
-#excelModal .btn-row {
-  display:flex; gap:8px; justify-content:center; margin-top:10px;
-}
-#excelModal button {
-  background:var(--primary-color); color:#fff; border:none; border-radius:4px;
-  cursor:pointer; font-size:0.85em; padding:6px 10px;
+  display: none; 
+  position: fixed; 
+  z-index: 9999; 
+  left: 0; 
+  top: 0; 
+  width: 100%; 
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
 }
 
-/* 세부 열 최소폭 */
+#excelModal .modal-content {
+  background: #fff; 
+  margin: 15% auto; 
+  width: 350px; 
+  border-radius: 6px; 
+  padding: 20px; 
+  position: relative;
+  text-align: center;
+}
+
+#excelModal h3 {
+  margin: 0 0 20px 0;
+  color: var(--primary-color);
+}
+
+#excelModal .btn-row {
+  display: flex; 
+  gap: 10px; 
+  justify-content: center; 
+  margin-top: 20px;
+}
+
+#excelModal button {
+  background: var(--primary-color); 
+  color: #fff; 
+  border: none; 
+  border-radius: 4px;
+  cursor: pointer; 
+  font-size: 0.9em; 
+  padding: 8px 16px;
+  transition: all 0.2s;
+}
+
+#excelModal button:hover {
+  background: #2b4f7a;
+}
+
+/* 테이블 셀 최소폭 설정 */
 th[data-field="공번"], td[data-field="공번"] { min-width: 100px; }
 th[data-field="공사"], td[data-field="공사"] { min-width: 50px; }
 th[data-field="imo"], td[data-field="imo"] { min-width: 90px; }
@@ -340,588 +1287,39 @@ th[data-field="warranty"], td[data-field="warranty"] { min-width: 110px; }
 th[data-field="prevManager"], td[data-field="prevManager"] { min-width: 70px; }
 th[data-field="manager"], td[data-field="manager"] { min-width: 70px; }
 th[data-field="현황"], td[data-field="현황"] { min-width: 400px; }
+th[data-field="현황번역"], td[data-field="현황번역"] { min-width: 400px; }
 th[data-field="동작여부"], td[data-field="동작여부"] { min-width: 70px; }
 th[data-field="조치계획"], td[data-field="조치계획"] { min-width: 150px; }
 th[data-field="접수내용"], td[data-field="접수내용"] { min-width: 150px; }
 th[data-field="조치결과"], td[data-field="조치결과"] { min-width: 150px; }
 th[data-field="AS접수일자"], td[data-field="AS접수일자"] { min-width: 110px; }
 th[data-field="기술적종료일"], td[data-field="기술적종료일"] { min-width: 110px; }
+th[data-field="경과일"], td[data-field="경과일"] { min-width: 50px; }
+th[data-field="정상지연"], td[data-field="정상지연"] { min-width: 50px; }
 th[data-field="지연 사유"], td[data-field="지연 사유"] { min-width: 300px; }
 
-/* 내용 모달 */
-#contentModal {
-  display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%;
-  background:rgba(0,0,0,0.3);
+/* 현황 번역 필드 스타일 */
+th[data-field="현황번역"] {
+  color: white !important;
+  background-color: var(--primary-color) !important;
+  font-weight: bold !important;
 }
-#contentModal .modal-content {
-  background:#fff; margin:5% auto; width:600px; border-radius:6px;
-  padding:10px; position:relative; max-height:90%;
-  overflow-y:auto;
-}
-#contentModal .close {
-  position:absolute; right:15px; top:10px; font-size:18px; cursor:pointer;
-}
-#contentModal h2 {
-  margin-top:0; margin-bottom:10px; font-size:1em;
-}
-#contentText {
-  white-space: pre-wrap;
-  line-height: 1.4;
-  font-size: 0.95em;
-  max-height: 400px;
-  overflow-y: auto;
-  border: 1px solid #ccc;
-  padding: 8px;
-  border-radius: 4px;
-}
-/* 마크다운 표 꾸밈 */
-#contentText table {
-  border-collapse: collapse;
-  margin-top: 6px;
-}
-#contentText th, #contentText td {
-  border: 1px solid #ccc;
-  padding: 6px;
-  text-align: left;
-}
-#contentText th {
-  background: #f0f0f0;
-}
-
-/* contentModal 전체화면 */
-#contentModal.fullscreen {
-  top:0; left:0; width:100%; height:100%; margin:0;
-  background:rgba(0,0,0,0.7);
-}
-#contentModal.fullscreen .modal-content {
-  width:100% !important; 
-  height:100% !important;
-  margin:0 !important;
-  border-radius:0;
-}
-
-/* (신규) 선사별 AI 요약 모달 */
-#ownerAIModal {
-  display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%;
-  background:rgba(0,0,0,0.3);
-}
-#ownerAIModal .modal-content {
-  background:#fff; margin:5% auto; width:1000px; border-radius:6px;
-  padding:10px; position:relative; max-height:100%; overflow-y:auto;
-}
-#ownerAIModal .close {
-  position:absolute; right:15px; top:10px; font-size:18px; cursor:pointer;
-}
-#ownerAISummaryText {
-  overflow-x: auto;
-}
-#ownerAISummaryText table {
-  width: auto;
-  table-layout: auto;
-  border-collapse: collapse;
-  margin-top: 6px;
-}
-#ownerAISummaryText th, #ownerAISummaryText td {
-  border: 1px solid #ccc;
-  padding: 6px;
-  text-align: left;
-}
-#ownerAISummaryText th {
-  background: #f0f0f0;
-}
-/* 전체화면 모드용 (ownerAIModal) */
-#ownerAIModal.fullscreen {
-  top:0; left:0; width:100%; height:100%; margin:0; 
-  background:rgba(0,0,0,0.7);
-}
-#ownerAIModal.fullscreen .modal-content {
-  width:100% !important; 
-  height:100% !important;
-  max-height:100%;
-  margin:0 !important;
-  border-radius:0;
-  overflow:auto;
-}
-
-/* (신규) AI 설정 관리 모달 */
-#aiConfigModal {
-  display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%;
-  background:rgba(0,0,0,0.3);
-}
-#aiConfigModal .modal-content {
-  background:#fff; margin:5% auto; width:500px; border-radius:6px;
-  padding:10px; position:relative;
-}
-#aiConfigModal .close {
-  position:absolute; right:15px; top:10px; font-size:18px; cursor:pointer;
-}
-#aiConfigModal h2 {
-  margin:0 0 10px; font-size:1em;
-}
-#aiConfigModal .form-group {
-  margin-bottom:8px;
-}
-#aiConfigModal .form-group label {
-  display:block; font-weight:600; margin-bottom:2px;
-}
-#aiConfigModal input[type="text"], 
-#aiConfigModal select, 
-#aiConfigModal textarea {
-  width:100%; padding:6px; border:1px solid #ccc; border-radius:4px;
-}
-#aiConfigModal .btn-row {
-  display:flex; gap:8px; justify-content:flex-end; margin-top:10px;
-}
-#aiConfigModal button {
-  background:var(--primary-color); color:#fff; border:none; border-radius:4px;
-  cursor:pointer; font-size:0.85em; padding:6px 10px;
-}
-
-/* (신규) AI 요약 실시간 표시 모달 */
-#aiProgressModal {
-  display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%;
-  background:rgba(0,0,0,0.3);
-}
-#aiProgressModal .modal-content {
-  background:#fff; margin:10% auto; width:600px; border-radius:6px; padding:10px; position:relative;
-}
-#aiProgressModal .close {
-  position:absolute; right:10px; top:10px; font-size:18px; cursor:pointer;
-}
-#aiProgressText {
-  width:100%; height:200px; border:1px solid #ccc; border-radius:6px;
-  padding:6px; overflow-y:auto; white-space:pre-wrap; margin-top:10px;
-}
-
-/* 로그아웃 버튼 및 사용자 정보 스타일 */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #fff;
-  padding: 10px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.header-left {
-  flex: 1;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-#userInfo {
-  font-size: 0.9em;
-  color: #555;
-}
-
-#currentUserName {
-  font-weight: bold;
-  color: var(--primary-color);
-}
-
-#logoutBtn {
-  background: var(--primary-color);
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.85em;
-  padding: 4px 8px;
-  transition: 0.2s all;
-}
-
-#logoutBtn:hover {
-  background: #2b4f7a;
-}
-
-/* 비밀번호 찾기 링크 스타일 */
-.forgot-pw-link {
-  text-align: right;
-  margin-top: 5px;
-  font-size: 0.85em;
-}
-
-.forgot-pw-link a {
-  color: var(--primary-color);
-  text-decoration: none;
-}
-
-.forgot-pw-link a:hover {
-  text-decoration: underline;
-}
-
-/* 비밀번호 찾기 모달 */
-#forgotPasswordModal {
-  display: none;
-  position: fixed;
-  z-index: 9999;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.3);
-}
-
-#forgotPasswordModal .modal-content {
-  background: #fff;
-  margin: 10% auto;
-  width: 350px;
-  border-radius: 6px;
-  padding: 15px;
-  position: relative;
-}
-
-#forgotPasswordModal h2 {
-  margin: 0 0 10px;
-  font-size: 1.2em;
-}
-
-#forgotPasswordModal p {
-  margin-bottom: 15px;
-  color: #555;
-  font-size: 0.9em;
-}
-
-#resetEmailStatus.success {
-  color: green;
-}
-
-#resetEmailStatus.error {
-  color: red;
-}
-
-/* 비밀번호 변경 모달 */
-#changePasswordModal {
-  display: none;
-  position: fixed;
-  z-index: 9999;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.3);
-}
-
-#changePasswordModal .modal-content {
-  background: #fff;
-  margin: 10% auto;
-  width: 350px;
-  border-radius: 6px;
-  padding: 15px;
-  position: relative;
-}
-
-#changePasswordModal h2 {
-  margin: 0 0 10px;
-  font-size: 1.2em;
-}
-
-#changePasswordModal p {
-  margin-bottom: 15px;
-  color: #555;
-  font-size: 0.9em;
-}
-
-#changePasswordStatus.success {
-  color: green;
-}
-
-#changePasswordStatus.error {
-  color: red;
-}
-
-/* 로그인 오류 메시지 스타일 개선 */
-#loginError {
-  color: #e74c3c;
-  margin-top: 10px;
-  font-size: 0.85em;
-  animation: fadeIn 0.3s ease-in-out;
-  padding: 5px 0;
-  font-weight: 500;
-}
-
-#loginError:empty {
-  padding: 0;
-  margin: 0;
-}
-
-/* 로그인 중... 메시지 스타일 */
-#loginError:contains("로그인 중...") {
-  color: #3498db;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-5px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* 입력 필드에 포커스 시 스타일 강화 */
-#loginUser:focus, #loginPw:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(49, 91, 138, 0.2);
-  outline: none;
-}
-
-/* 로그인 버튼 호버 효과 개선 */
-#loginConfirmBtn {
-  transition: all 0.3s ease;
-}
-
-#loginConfirmBtn:hover {
-  background-color: #264c70;
-  transform: translateY(-2px);
-}
-
-#loginConfirmBtn:active {
-  transform: translateY(0);
-}
-
-/* 비밀번호 변경 및 초기화 모달 스타일 개선 */
-#changePasswordModal, #forgotPasswordModal {
-  display: none;
-  position: fixed;
-  z-index: 10000; /* 가장 높은 z-index로 설정 */
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  overflow: auto;
-}
-
-#changePasswordModal .modal-content, 
-#forgotPasswordModal .modal-content {
-  background-color: #fff;
-  margin: 10% auto;
-  padding: 20px;
-  border-radius: 8px;
-  width: 400px;
-  max-width: 90%;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-  position: relative;
-}
-
-#changePasswordModal h2, 
-#forgotPasswordModal h2 {
-  margin: 0 0 15px 0;
-  color: var(--primary-color);
-  font-size: 1.3em;
-}
-
-#changePasswordModal .form-group, 
-#forgotPasswordModal .form-group {
-  margin-bottom: 15px;
-}
-
-#changePasswordModal .form-group label, 
-#forgotPasswordModal .form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: 500;
-}
-
-#changePasswordModal .form-group input, 
-#forgotPasswordModal .form-group input {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 1em;
-}
-
-#changePasswordModal .form-group input:focus, 
-#forgotPasswordModal .form-group input:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(49, 91, 138, 0.2);
-  outline: none;
-}
-
-#changePasswordModal .btn-row, 
-#forgotPasswordModal .btn-row {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-#changePasswordModal button, 
-#forgotPasswordModal button {
-  padding: 8px 15px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9em;
-  transition: all 0.2s;
-}
-
-#changePasswordModal button:first-child, 
-#forgotPasswordModal button:first-child {
-  background-color: var(--primary-color);
-  color: white;
-}
-
-#changePasswordModal button:first-child:hover, 
-#forgotPasswordModal button:first-child:hover {
-  background-color: #264c70;
-}
-
-#changePasswordModal button:last-child, 
-#forgotPasswordModal button:last-child {
-  background-color: #e0e0e0;
-  color: #333;
-}
-
-#changePasswordModal button:last-child:hover, 
-#forgotPasswordModal button:last-child:hover {
-  background-color: #d0d0d0;
-}
-
-#changePasswordStatus, 
-#resetEmailStatus {
-  margin-top: 15px;
-  padding: 8px;
-  border-radius: 4px;
-  font-size: 0.9em;
-}
-
-#changePasswordStatus.success, 
-#resetEmailStatus.success {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-#changePasswordStatus.error, 
-#resetEmailStatus.error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-
-/* 모달 닫기 버튼 */
-#changePasswordModal .close,
-#forgotPasswordModal .close {
-  position: absolute;
-  top: 10px;
-  right: 15px;
-  font-size: 20px;
-  font-weight: bold;
-  color: #aaa;
-  cursor: pointer;
-}
-
-#changePasswordModal .close:hover,
-#forgotPasswordModal .close:hover {
-  color: #333;
-}
-
-.save-success {
-  background-color: #28a745 !important;
-  transition: background-color 0.3s ease;
-}
-
-/* 선박 데이터 API 관련 추가 스타일 */
-/* 반영 버튼 */
-td button {
-  background-color: var(--api-color);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 4px 8px;
-  cursor: pointer;
-  font-size: 0.85em;
-  transition: all 0.2s;
-}
-
-td button:hover {
-  background-color: #218838;
-  transform: translateY(-1px);
-}
-
-td button:active {
-  transform: translateY(0);
-}
-
-/* API 필드 강조 */
-th[data-field="api_name"],
-th[data-field="api_owner"],
-th[data-field="api_manager"] {
-  background-color: var(--api-color);
-}
-
-/* API 데이터가 있는 셀 스타일 */
-td[data-field="api_name"] input:not([value=""]),
-td[data-field="api_owner"] input:not([value=""]),
-td[data-field="api_manager"] input:not([value=""]) {
-  background-color: #e8f5e9;
-  font-weight: 500;
-  color: #1b5e20;
-  border-color: #a5d6a7;
-}
-
-/* API 설정 버튼 스타일 */
-#apiConfigBtn {
-  background-color: var(--api-color);
-  font-weight: 500;
-}
-
-#apiConfigBtn:hover {
-  background-color: #218838;
-}
-
-/* API 전체 반영 버튼 강조 */
-#apiRefreshAllBtn {
-  background-color: var(--api-color);
-  font-weight: 600;
-  border: 2px solid #1d7430;
-}
-
-#apiRefreshAllBtn:hover {
-  background-color: #218838;
-  transform: translateY(-2px);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-}
-
-/* 로딩 오버레이 */
-.loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0,0,0,0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 10000;
-  color: white;
-  font-size: 1.2em;
-}
 
-.loading-spinner {
-  border: 4px solid rgba(255,255,255,0.3);
-  border-radius: 50%;
-  border-top: 4px solid white;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin-right: 10px;
+td[data-field="현황번역"] input {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+td[data-field="현황번역"] input:not([value=""]) {
+  background-color: #eaf7ff;
+  border-color: #b8daff;
 }
 
-/* 언어 선택 버튼 스타일 개선 */
+/* 언어 선택 버튼 */
 .language-selector {
   display: flex;
   gap: 5px;
-  margin-top: 8px;
+  margin-top: 10px;
   flex-wrap: wrap;
 }
 
@@ -929,7 +1327,7 @@ td[data-field="api_manager"] input:not([value=""]) {
   background-color: #f0f0f0;
   border: 1px solid #ccc;
   border-radius: 4px;
-  padding: 3px 8px;
+  padding: 4px 10px;
   font-size: 0.85em;
   cursor: pointer;
   transition: all 0.2s;
@@ -947,47 +1345,6 @@ td[data-field="api_manager"] input:not([value=""]) {
   font-weight: bold;
 }
 
-/* 헤더 레이아웃 개선 */
-.header-left {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-/* 현황 번역 필드 스타일 수정 */
-th[data-field="현황번역"] {
-  color: white !important;  /* 글자색 강제 지정 */
-  background-color: var(--primary-color) !important;  /* 배경색 강제 지정 */
-  font-weight: bold !important;
-}
-
-th[data-field="현황번역"], td[data-field="현황번역"] {
-  min-width: 400px;
-}
-
-/* 현황 번역 필드 입력창 스타일 */
-td[data-field="현황번역"] input {
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  width: 95%;
-}
-
-/* 번역 완료된 셀 강조 */
-td[data-field="현황번역"] input:not([value=""]) {
-  background-color: #eaf7ff;
-  border-color: #b8daff;
-}
-
-#translateBtn:hover {
-  background-color: #4a5a6b;
-}
-
-/* 번역 진행 중 스타일 */
-.translating {
-  opacity: 0.7;
-  pointer-events: none;
-}
-
 /* 번역 진행 표시기 */
 .translation-progress {
   position: fixed;
@@ -996,24 +1353,149 @@ td[data-field="현황번역"] input:not([value=""]) {
   transform: translate(-50%, -50%);
   background: rgba(0, 0, 0, 0.8);
   color: white;
-  padding: 15px 20px;
+  padding: 20px 30px;
   border-radius: 8px;
   z-index: 10000;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 15px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 .translation-spinner {
   border: 3px solid rgba(255, 255, 255, 0.3);
   border-top: 3px solid white;
   border-radius: 50%;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   animation: spin 1s linear infinite;
+}
+
+.translating {
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* 특수 버튼 스타일 */
+#translateBtn {
+  background: #5d6d7e;
+}
+
+#translateBtn:hover {
+  background: #4a5a6b;
+}
+
+#ownerAISummaryBtn {
+  background: #6c757d;
+}
+
+#ownerAISummaryBtn:hover {
+  background: #5a6268;
+}
+
+#apiRefreshAllBtn {
+  background: var(--api-color);
+  font-weight: bold;
+}
+
+#apiRefreshAllBtn:hover {
+  background: #218838;
+}
+
+/* 저장 성공 애니메이션 */
+.save-success {
+  background-color: #28a745 !important;
+  transition: background-color 0.3s ease;
+}
+
+/* 로딩 오버레이 */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  color: white;
+  font-size: 1.2em;
+}
+
+.loading-spinner {
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top: 4px solid white;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-right: 10px;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 200px;
+  }
+  
+  .sidebar.expanded {
+    width: 240px;
+  }
+  
+  .filters {
+    flex-direction: column;
+  }
+  
+  .filters .filter-group {
+    width: 100%;
+  }
+  
+  .filters input,
+  .filters select {
+    width: 100%;
+  }
+  
+  .modal-content {
+    width: 95% !important;
+    margin: 2% auto !important;
+  }
+  
+  .status-summary {
+    flex-wrap: wrap;
+  }
+  
+  .status-card {
+    min-width: 120px;
+  }
+}
+
+/* 인쇄 스타일 */
+@media print {
+  .sidebar,
+  .header,
+  .filters,
+  .bottom-controls,
+  .modal-background {
+    display: none !important;
+  }
+  
+  .container {
+    margin: 0;
+    padding: 0;
+  }
+  
+  table {
+    font-size: 10px;
+  }
+  
+  th, td {
+    padding: 4px;
+  }
 }
