@@ -268,26 +268,28 @@
       </table>
     </div>
 
-    <div class="bottom-controls">
-      <button id="addRowBtn">행 추가</button>
-      <button id="deleteRowBtn">선택 행 삭제</button>
-      <button id="saveBtn">저장</button>
-      <button id="downloadExcelBtn">엑셀 다운로드</button>
-      <!-- 엑셀 업로드 -->
-      <input type="file" id="uploadExcelInput" style="display:none;" accept=".xlsx,.xls">
-      <button id="uploadExcelBtn">엑셀 업로드</button>
-      <!-- (신규) AS 현황 업로드 -->
-      <input type="file" id="uploadAsStatusInput" style="display:none;" accept=".xlsx,.xls">
-      <button id="uploadAsStatusBtn">AS 현황 업로드</button>
-      <button id="historyBtn">히스토리 조회</button>
-      <button id="clearHistoryBtn">히스토리 전체 삭제</button>
-      <button id="translateBtn" style="background:#5d6d7e;">현황 번역</button>
-      <!-- (추가) 선사별 AI 요약 버튼 -->
-      <button id="ownerAISummaryBtn" style="background:#6c757d;">선사별 AI 요약</button>
-      <!-- (추가) API 전체 반영 버튼 -->
-      <button id="apiRefreshAllBtn" style="background:#28a745;">API 전체 반영</button>
-    </div>
-  </div>
+<!-- 하단 버튼 -->
+<div class="bottom-controls">
+  <button id="addRowBtn">행 추가</button>
+  <button id="deleteRowBtn">선택 행 삭제</button>
+  <button id="saveBtn">저장</button>
+  <button id="downloadExcelBtn">엑셀 다운로드</button>
+  <!-- 엑셀 업로드 -->
+  <input type="file" id="uploadExcelInput" style="display:none;" accept=".xlsx,.xls">
+  <button id="uploadExcelBtn">엑셀 업로드</button>
+  <!-- (신규) AS 현황 업로드 -->
+  <input type="file" id="uploadAsStatusInput" style="display:none;" accept=".xlsx,.xls">
+  <button id="uploadAsStatusBtn">AS 현황 업로드</button>
+  <button id="historyBtn">히스토리 조회</button>
+  <button id="clearHistoryBtn">히스토리 전체 삭제</button>
+  <button id="translateBtn" style="background:#5d6d7e;">현황 번역</button>
+  <!-- (추가) 선사별 AI 요약 버튼 -->
+  <button id="ownerAISummaryBtn" style="background:#6c757d;">선사별 AI 요약</button>
+  <!-- (추가) API 전체 반영 버튼 -->
+  <button id="apiRefreshAllBtn" style="background:#28a745;">API 전체 반영</button>
+  <!-- (추가) 담당자별 현황 버튼 -->
+  <button id="managerStatusBtn" style="background:#ff6b6b;">담당자별 현황</button>
+</div>
 
   <!-- 히스토리 모달 -->
   <div id="historyModal">
@@ -325,6 +327,28 @@
       </div>
     </div>
   </div>
+
+<!-- 담당자별 현황 모달 -->
+<div id="managerStatusModal">
+  <div class="modal-content">
+    <span class="close" onclick="closeManagerStatusModal()">&times;</span>
+    <!-- 전체화면 버튼 추가 -->
+    <button style="position:absolute; right:45px; top:10px; font-size:0.85em; background:#666; color:#fff; border:none; border-radius:4px; padding:4px 8px; cursor:pointer;"
+            onclick="toggleManagerStatusFullscreen()">전체화면</button>
+    <h2>담당자별 일정 관리 현황</h2>
+    <div style="margin-bottom: 10px;">
+      <label>정렬: </label>
+      <select id="managerStatusSort" onchange="sortManagerStatus()">
+        <option value="name">이름순</option>
+        <option value="overdue">경과일순</option>
+        <option value="access">최근 접속순</option>
+      </select>
+    </div>
+    <div id="managerStatusList" style="max-height: 600px; overflow-y: auto;">
+      <!-- 담당자별 현황이 여기에 표시됩니다 -->
+    </div>
+  </div>
+</div>
 
   <!-- API 설정 관리 모달 -->
   <div id="apiConfigModal">
@@ -425,7 +449,7 @@
     </div>
   </div>
 
-  <!-- (신규) AI 실시간 진행 상황 표시 모달 -->a
+  <!-- (신규) AI 실시간 진행 상황 표시 모달 -->
   <div id="aiProgressModal">
     <div class="modal-content">
       <span class="close" onclick="document.getElementById('aiProgressModal').style.display='none';">&times;</span>
