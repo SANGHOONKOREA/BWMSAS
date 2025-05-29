@@ -60,6 +60,15 @@ let isFilterActive = false; // 필터 활성화 여부
 // 전역 변수 섹션에 추가
 let modifiedRows = new Set();
 
+
+// 전역 변수 추가 (파일 상단에 추가해야 함)
+let currentUser = null;
+let currentUid = null;
+
+// 전역 변수 섹션에 추가
+let managerScheduleStatus = {}; // 담당자별 일정 확인 상태
+const scheduleCheckPath = 'as-service/schedule_checks'; // 일정 확인 기록 경로
+
 // 경로 정의
 const asPath = 'as-service/data';
 const userPath = 'as-service/users';
@@ -68,6 +77,9 @@ const aiHistoryPath = 'as-service/ai_history';
 const aiConfigPath = "as-service/admin/aiConfig";
 const apiConfigPath = "as-service/admin/apiConfig";
 const userMetaPath = 'as-service/user_meta';
+
+// 전역 변수 섹션에 추가
+const mainUsersPath = 'users'; // main.js에서 사용하는 경로
 
 // AI 설정 글로벌 변수
 let g_aiConfig = {
@@ -546,6 +558,22 @@ function registerEventListeners() {
   // 히스토리 관련
   document.getElementById('historyBtn').addEventListener('click', showHistoryModal);
   document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
+
+// registerEventListeners 함수에 이벤트 추가
+document.getElementById('managerStatusBtn').addEventListener('click', openManagerStatusModal);
+
+// 일정 확인 버튼 추가
+const scheduleCheckBtn = document.createElement('button');
+scheduleCheckBtn.id = 'scheduleCheckBtn';
+scheduleCheckBtn.textContent = '일정 확인';
+scheduleCheckBtn.style.cssText = 'background:#17a2b8; color:#fff; margin-left:10px;';
+scheduleCheckBtn.addEventListener('click', confirmCurrentUserSchedule);
+
+// 로그아웃 버튼 옆에 추가
+const logoutBtn = document.getElementById('logoutBtn');
+if (logoutBtn && logoutBtn.parentNode) {
+  logoutBtn.parentNode.insertBefore(scheduleCheckBtn, logoutBtn);
+}
 
   // 번역 관련
   document.getElementById('translateBtn').addEventListener('click', translateStatusField);
@@ -1395,35 +1423,99 @@ function getTranslationDirection(currentLang) {
  *  사용자 인증 및 관리
  * ===================================*/
 // 로그인 상태 감지 핸들러
-auth.onAuthStateChanged(user => {
+// onAuthStateChanged 수정 - 사용자 이름 표시 개선
+auth.onAuthStateChanged(async (user) => {
   if (user) {
     // 로그인됨
     document.getElementById('loginModal').style.display = 'none';
     
-    // 현재 사용자 이메일 표시
-    document.getElementById('currentUserName').textContent = user.email || "-";
+    // main.js의 users에서 사용자 정보 찾기
+    try {
+      const mainUsersSnapshot = await db.ref(mainUsersPath).once('value');
+      const mainUsers = mainUsersSnapshot.val() || {};
+      
+      let displayName = user.email;
+      for (const uid in mainUsers) {
+        if (mainUsers[uid].email === user.email) {
+          displayName = mainUsers[uid].id || user.email;
+          break;
+        }
+      }
+      
+      // 현재 사용자 이름 표시
+      document.getElementById('currentUserName').textContent = displayName;
+      
+      // 전역 변수 설정
+      currentUid = user.uid;
+      currentUser = {
+        uid: user.uid,
+        email: user.email,
+        name: displayName,
+        role: '일반'
+      };
+    } catch (error) {
+      console.error('사용자 정보 조회 오류:', error);
+      // 오류 시 기본값 사용
+      document.getElementById('currentUserName').textContent = user.email || "-";
+      currentUid = user.uid;
+      currentUser = {
+        uid: user.uid,
+        email: user.email,
+        name: user.email.split('@')[0],
+        role: '일반'
+      };
+    }
+    
+    // 사용자 데이터 초기화
+    initializeScheduleData();
     
     // 최초 로그인 여부 확인
     checkFirstLogin(user.uid)
       .then(isFirstLogin => {
         if (isFirstLogin) {
-          // 최초 로그인이면 비밀번호 변경 모달 표시
           showChangePasswordModal();
         } else {
-          // 최초 로그인이 아니면 정상적으로 화면 표시
           showMainInterface();
         }
       })
       .catch(error => {
         console.error('최초 로그인 확인 오류:', error);
-        // 오류 발생 시 일단 정상적으로 화면 표시
         showMainInterface();
       });
   } else {
     // 미로그인
+    currentUser = null;
+    currentUid = null;
     resetInterface();
   }
 });
+// Firebase 데이터 구조 확인 및 초기화 함수
+async function initializeScheduleData() {
+  try {
+    // 현재 로그인한 사용자 정보
+    const user = auth.currentUser;
+    if (!user) return;
+    
+    // 사용자 이름 가져오기
+    const userName = user.email.split('@')[0];
+    
+    // 초기 데이터 구조 생성
+    const now = new Date().toISOString();
+    
+    // user_meta에 초기 데이터 저장
+    await db.ref(`as-service/user_meta/${user.uid}`).update({
+      email: user.email,
+      userName: userName,
+      lastLogin: now,
+      uid: user.uid
+    });
+    
+    console.log('사용자 메타 데이터 초기화 완료:', userName);
+  } catch (error) {
+    console.error('초기화 오류:', error);
+  }
+}
+
 
 // 인터페이스 초기화
 function resetInterface() {
@@ -1457,6 +1549,7 @@ function showMainInterface() {
 }
 
 // 로그인 수행
+// performLogin 함수 수정 - 로그인 시 사용자 정보 동기화
 function performLogin() {
   const email = document.getElementById('loginUser').value.trim();
   const pw = document.getElementById('loginPw').value.trim();
@@ -1477,8 +1570,44 @@ function performLogin() {
   document.getElementById('loginError').textContent = "로그인 중...";
   
   auth.signInWithEmailAndPassword(email, pw)
-    .then(() => {
+    .then(async (userCredential) => {
       document.getElementById('loginError').textContent = "";
+      
+      // 로그인 성공 시 user_meta 업데이트
+      const user = userCredential.user;
+      const now = new Date().toISOString();
+      
+      // main.js의 users에서 사용자 정보 찾기
+      const mainUsersSnapshot = await db.ref(mainUsersPath).once('value');
+      const mainUsers = mainUsersSnapshot.val() || {};
+      
+      let userName = '';
+      for (const uid in mainUsers) {
+        if (mainUsers[uid].email === user.email) {
+          userName = mainUsers[uid].id || '';
+          break;
+        }
+      }
+      
+      // 사용자 이름이 없으면 이메일에서 추출
+      if (!userName) {
+        userName = user.email.split('@')[0];
+      }
+      
+      await db.ref(`as-service/user_meta/${user.uid}`).update({
+        lastLogin: now,
+        email: user.email,
+        uid: user.uid,
+        userName: userName,
+        lastLoginKST: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString()
+      });
+      
+      console.log('로그인 및 메타 정보 업데이트 완료:', {
+        uid: user.uid,
+        email: user.email,
+        userName: userName,
+        lastLogin: now
+      });
     })
     .catch(err => {
       console.error("로그인 오류:", err);
@@ -1508,9 +1637,7 @@ function performLogin() {
       
       document.getElementById('loginError').textContent = errorMsg;
     });
-}
-
-// 로그아웃
+}// 로그아웃
 function logoutUser() {
   if(confirm("로그아웃 하시겠습니까?")) {
     auth.signOut()
@@ -1830,8 +1957,24 @@ function addNewUser() {
     alert("사용자명/비번 필수 입력");
     return;
   }
-  const key = db.ref(userPath).push().key;
-  db.ref(`${userPath}/${key}`).set({username: uname, password: upw})
+  
+  // 이메일 형식으로 변환 (사용자명@example.com)
+  const email = uname.includes('@') ? uname : `${uname}@snsys.com`;
+  
+  // Firebase Auth에 사용자 생성
+  auth.createUserWithEmailAndPassword(email, upw)
+    .then((userCredential) => {
+      const user = userCredential.user;
+      
+      // 사용자 DB에 저장
+      return db.ref(`${userPath}/${user.uid}`).set({
+        username: uname,
+        password: upw, // 실제 운영환경에서는 비밀번호를 평문으로 저장하면 안됨
+        email: email,
+        uid: user.uid,
+        createdAt: new Date().toISOString()
+      });
+    })
     .then(() => {
       alert("사용자 등록 완료");
       document.getElementById('newUserName').value = '';
@@ -1843,6 +1986,10 @@ function addNewUser() {
       const val = snap.val() || {};
       userData = Object.entries(val).map(([k, v]) => ({uid: k, ...v}));
       renderUserList();
+    })
+    .catch((error) => {
+      console.error("사용자 추가 오류:", error);
+      alert("사용자 추가 실패: " + error.message);
     });
 }
 
@@ -4582,3 +4729,447 @@ function isEqual(obj1, obj2) {
   
   return true;
 }
+
+
+// 담당자별 현황 모달 열기
+function openManagerStatusModal() {
+  loadManagerScheduleStatus();
+  document.getElementById('managerStatusModal').style.display = 'block';
+}
+
+// 담당자별 현황 모달 닫기
+function closeManagerStatusModal() {
+  document.getElementById('managerStatusModal').style.display = 'none';
+}
+
+// loadManagerScheduleStatus 함수 완전 재작성
+async function loadManagerScheduleStatus() {
+  try {
+    console.log('=== 담당자별 현황 로드 시작 ===');
+    
+    // 1. 현재 담당자 목록 가져오기
+    const managers = new Set();
+    asData.forEach(row => {
+      if (row.manager && row.manager.trim()) {
+        managers.add(row.manager.trim());
+      }
+    });
+    console.log('전체 담당자 목록:', Array.from(managers));
+
+    // 2. main.js의 users 경로에서 사용자 정보 가져오기
+    const mainUsersSnapshot = await db.ref(mainUsersPath).once('value');
+    const mainUsers = mainUsersSnapshot.val() || {};
+    console.log('Main users 데이터:', mainUsers);
+    
+    // 3. 일정 확인 기록 가져오기
+    const checksSnapshot = await db.ref(scheduleCheckPath).once('value');
+    const scheduleData = checksSnapshot.val() || {};
+    console.log('일정 확인 데이터:', scheduleData);
+    
+    // 4. 사용자 메타 데이터 가져오기
+    const metaSnapshot = await db.ref('as-service/user_meta').once('value');
+    const metaData = metaSnapshot.val() || {};
+    console.log('사용자 메타 데이터:', metaData);
+    
+    // 5. 담당자 이름과 UID 매핑 생성
+    const nameToUid = {};
+    const uidToName = {};
+    
+    // main.js의 users에서 매핑 생성
+    for (const uid in mainUsers) {
+      const user = mainUsers[uid];
+      if (user.id) { // id가 사용자 이름
+        nameToUid[user.id] = uid;
+        uidToName[uid] = user.id;
+        console.log(`Main users 매핑: ${user.id} -> ${uid}`);
+      }
+    }
+    
+    // 6. 담당자별 상태 수집
+    managerScheduleStatus = {};
+    
+    managers.forEach(managerName => {
+      console.log(`\n담당자 ${managerName} 처리 중...`);
+      
+      let lastCheck = null;
+      let lastAccess = null;
+      let foundUid = null;
+      
+      // 이름으로 UID 찾기
+      if (nameToUid[managerName]) {
+        foundUid = nameToUid[managerName];
+        console.log(`이름 매핑으로 UID 발견: ${foundUid}`);
+      }
+      
+      // UID를 찾았으면 데이터 조회
+      if (foundUid) {
+        // 일정 확인 날짜
+        if (scheduleData[foundUid]) {
+          lastCheck = scheduleData[foundUid].lastCheckDate;
+          console.log(`일정 확인 날짜: ${lastCheck}`);
+        }
+        
+        // 마지막 접속 날짜
+        if (metaData[foundUid]) {
+          lastAccess = metaData[foundUid].lastLogin;
+          console.log(`마지막 접속: ${lastAccess}`);
+        }
+      }
+      
+      // 상태 저장
+      managerScheduleStatus[managerName] = {
+        name: managerName,
+        lastAccess: lastAccess,
+        lastCheck: lastCheck,
+        scheduleCount: asData.filter(row => row.manager === managerName).length,
+        uid: foundUid
+      };
+      
+      console.log(`${managerName} 최종 상태:`, managerScheduleStatus[managerName]);
+    });
+    
+    console.log('\n=== 최종 담당자별 상태 ===');
+    console.log(managerScheduleStatus);
+    
+    // 화면에 표시
+    displayManagerStatus();
+  } catch (error) {
+    console.error('담당자별 현황 로드 오류:', error);
+    alert('담당자별 현황을 불러오는 중 오류가 발생했습니다.');
+  }
+}
+// displayManagerStatus 함수 수정
+function displayManagerStatus() {
+  const container = document.getElementById('managerStatusList');
+  container.innerHTML = '';
+  
+  console.log('표시할 담당자 상태:', managerScheduleStatus);
+  
+  // 데이터가 없는 경우
+  if (!managerScheduleStatus || Object.keys(managerScheduleStatus).length === 0) {
+    container.innerHTML = '<p style="text-align: center; color: #666;">표시할 데이터가 없습니다.</p>';
+    return;
+  }
+  
+  // 정렬
+  const sortType = document.getElementById('managerStatusSort').value;
+  let sortedManagers = Object.values(managerScheduleStatus);
+  
+  sortedManagers.sort((a, b) => {
+    switch(sortType) {
+      case 'name':
+        return a.name.localeCompare(b.name);
+      case 'overdue':
+        return getDaysSinceCheck(b.lastCheck) - getDaysSinceCheck(a.lastCheck);
+      case 'access':
+        return (b.lastAccess || '').localeCompare(a.lastAccess || '');
+      default:
+        return 0;
+    }
+  });
+  
+  // 테이블 생성
+  const table = document.createElement('table');
+  table.className = 'manager-status-table';
+  
+  // 헤더
+  const thead = document.createElement('thead');
+  thead.innerHTML = `
+    <tr>
+      <th>담당자</th>
+      <th>일정</th>
+      <th>접속</th>
+      <th>확인</th>
+      <th>경과</th>
+    </tr>
+  `;
+  table.appendChild(thead);
+  
+  // 바디
+  const tbody = document.createElement('tbody');
+  
+  sortedManagers.forEach(manager => {
+    const tr = document.createElement('tr');
+    
+    // 경과일 계산
+    const daysSince = getDaysSinceCheck(manager.lastCheck);
+    let textColor = '#000';
+    if (daysSince >= 21) {
+      textColor = '#dc3545'; // 붉은색 텍스트
+    } else if (daysSince >= 14) {
+      textColor = '#fd7e14'; // 주황색 텍스트
+    } else if (daysSince >= 7) {
+      textColor = '#ffc107'; // 노란색 텍스트
+    }
+    
+// 날짜 포맷 함수 - 년도 포함
+const formatDateWithYear = (dateStr) => {
+  if (!dateStr) return '-';
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).replace(/\. /g, '-').replace('.', '');
+};
+
+// 날짜 표시 - 년도 포함
+const lastAccessDate = formatDateWithYear(manager.lastAccess);
+const lastCheckDate = formatDateWithYear(manager.lastCheck);
+    
+    // 각 셀을 개별적으로 생성 (innerHTML 대신)
+    const td1 = document.createElement('td');
+    td1.textContent = manager.name;
+    tr.appendChild(td1);
+    
+    const td2 = document.createElement('td');
+    td2.style.textAlign = 'center';
+    td2.textContent = manager.scheduleCount;
+    tr.appendChild(td2);
+    
+    const td3 = document.createElement('td');
+    td3.style.textAlign = 'center';
+    td3.textContent = lastAccessDate;
+    tr.appendChild(td3);
+    
+    const td4 = document.createElement('td');
+    td4.style.textAlign = 'center';
+    td4.textContent = lastCheckDate;
+    tr.appendChild(td4);
+    
+const td5 = document.createElement('td');
+td5.style.textAlign = 'center';
+td5.style.fontWeight = 'bold';
+td5.style.color = textColor;
+td5.textContent = daysSince + '일';
+tr.appendChild(td5);
+    
+    // 행 클릭 시 해당 담당자의 일정 확인 (관리자만)
+    tr.style.cursor = 'pointer';
+    tr.onclick = () => {
+      if (confirm(`${manager.name} 담당자의 일정을 확인하셨습니까?`)) {
+        confirmScheduleForManager(manager.name);
+      }
+    };
+    
+    tbody.appendChild(tr);
+  });
+  
+  table.appendChild(tbody);
+  
+  
+  container.appendChild(table);
+  
+  // 모달 크기 자동 조정
+  const modal = document.querySelector('#managerStatusModal .modal-content');
+  if (modal) {
+    modal.style.maxWidth = '90%';
+  }
+  
+  console.log('테이블 렌더링 완료');
+}
+
+// 특정 담당자의 일정 확인 (관리자용)
+async function confirmScheduleForManager(managerName) {
+  const user = auth.currentUser;
+  if (!user) {
+    alert('로그인이 필요합니다.');
+    return;
+  }
+  
+  try {
+    const now = new Date().toISOString();
+    
+    // 해당 담당자의 UID 찾기
+    let targetUid = null;
+    
+    // managerScheduleStatus에서 찾기
+    if (managerScheduleStatus[managerName] && managerScheduleStatus[managerName].uid) {
+      targetUid = managerScheduleStatus[managerName].uid;
+    }
+    
+    // main.js의 users에서 찾기
+    if (!targetUid) {
+      const mainUsersSnapshot = await db.ref(mainUsersPath).once('value');
+      const mainUsers = mainUsersSnapshot.val() || {};
+      
+      for (const uid in mainUsers) {
+        if (mainUsers[uid].id === managerName) {
+          targetUid = uid;
+          break;
+        }
+      }
+    }
+    
+    // UID를 찾지 못한 경우 새로운 키 생성
+    if (!targetUid) {
+      targetUid = db.ref().push().key;
+    }
+    
+    // 일정 확인 정보 저장
+    await db.ref(`${scheduleCheckPath}/${targetUid}`).set({
+      lastCheckDate: now,
+      checkedBy: user.email,
+      managerName: managerName,
+      uid: targetUid,
+      timestamp: firebase.database.ServerValue.TIMESTAMP
+    });
+    
+    alert(`${managerName} 담당자의 일정 확인이 완료되었습니다.`);
+    
+    // 목록 새로고침
+    loadManagerScheduleStatus();
+  } catch (error) {
+    console.error('일정 확인 처리 오류:', error);
+    alert('일정 확인 처리 중 오류가 발생했습니다.');
+  }
+}// 일정 확인 완료 처리
+async function confirmScheduleCheck(managerName) {
+  try {
+    // 해당 담당자의 userId 찾기
+    const usersSnapshot = await db.ref('users').once('value');
+    const users = usersSnapshot.val() || {};
+    
+    let userId = null;
+    for (const uid in users) {
+      if (users[uid].id === managerName) {
+        userId = uid;
+        break;
+      }
+    }
+    
+    if (!userId) {
+      alert('해당 담당자의 사용자 정보를 찾을 수 없습니다.');
+      return;
+    }
+    
+    // 일정 확인 기록 저장
+    const now = new Date().toISOString();
+    await db.ref(`${scheduleCheckPath}/${userId}`).set({
+      lastCheckDate: now,
+      checkedBy: currentUser.email || currentUid,
+      managerName: managerName
+    });
+    
+    alert(`${managerName} 담당자의 일정 확인이 완료되었습니다.`);
+    
+    // 목록 새로고침
+    loadManagerScheduleStatus();
+  } catch (error) {
+    console.error('일정 확인 처리 오류:', error);
+    alert('일정 확인 처리 중 오류가 발생했습니다.');
+  }
+}
+
+// 마지막 확인 이후 경과일 계산
+function getDaysSinceCheck(lastCheck) {
+  // 확인 기록이 없으면 2025년 5월 29일 기준으로 계산
+  const checkDate = lastCheck ? new Date(lastCheck) : new Date('2025-05-29');
+  const today = new Date();
+  const diffTime = today - checkDate;
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  
+  return diffDays;
+}
+// 날짜시간 포맷 (더 짧게)
+function formatDateTime(dateStr) {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr);
+    const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+    // 시간 제거하고 날짜만 표시
+    return kstDate.toISOString().substring(5, 16).replace('T', ' ');
+  } catch (e) {
+    return dateStr;
+  }
+}
+
+// 날짜 포맷
+function formatDate(dateStr) {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr);
+    return date.toISOString().substring(0, 10);
+  } catch (e) {
+    return dateStr;
+  }
+}
+
+// 담당자별 현황 정렬
+function sortManagerStatus() {
+  displayManagerStatus();
+}
+
+// confirmCurrentUserSchedule 함수 수정
+async function confirmCurrentUserSchedule() {
+  const user = auth.currentUser;
+  if (!user) {
+    alert('로그인이 필요합니다.');
+    return;
+  }
+  
+  try {
+    const now = new Date().toISOString();
+    const userEmail = user.email;
+    
+    // main.js의 users에서 현재 사용자 정보 찾기
+    const mainUsersSnapshot = await db.ref(mainUsersPath).once('value');
+    const mainUsers = mainUsersSnapshot.val() || {};
+    
+    let userName = '';
+    let userInfo = null;
+    
+    // 이메일로 사용자 찾기
+    for (const uid in mainUsers) {
+      if (mainUsers[uid].email === userEmail) {
+        userName = mainUsers[uid].id || userEmail.split('@')[0];
+        userInfo = mainUsers[uid];
+        break;
+      }
+    }
+    
+    // 사용자를 찾지 못한 경우 이메일에서 추출
+    if (!userName) {
+      userName = userEmail.split('@')[0];
+    }
+    
+    console.log('일정 확인 처리:', {
+      uid: user.uid,
+      email: userEmail,
+      name: userName,
+      date: now
+    });
+    
+    // 일정 확인 정보 저장
+    await db.ref(`${scheduleCheckPath}/${user.uid}`).set({
+      lastCheckDate: now,
+      checkedBy: userEmail,
+      managerName: userName,
+      uid: user.uid,
+      timestamp: firebase.database.ServerValue.TIMESTAMP
+    });
+    
+    // user_meta 업데이트
+    await db.ref(`as-service/user_meta/${user.uid}`).update({
+      lastScheduleCheck: now,
+      userName: userName,
+      email: userEmail
+    });
+    
+    alert(`${userName}님의 일정 확인이 완료되었습니다.`);
+    
+    // 담당자별 현황 모달이 열려있다면 새로고침
+    if (document.getElementById('managerStatusModal').style.display === 'block') {
+      loadManagerScheduleStatus();
+    }
+  } catch (error) {
+    console.error('일정 확인 처리 오류:', error);
+    alert('일정 확인 처리 중 오류가 발생했습니다.');
+  }
+}
+// 전체화면 토글 함수 추가
+function toggleManagerStatusFullscreen() {
+  const modal = document.getElementById('managerStatusModal');
+  modal.classList.toggle('fullscreen');
+}
+
