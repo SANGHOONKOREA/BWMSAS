@@ -47,11 +47,18 @@ body {
   cursor:pointer; font-size:0.85em; padding:6px 10px;
 }
 
-/* 사이드바 */
 .sidebar {
-  width: 240px; background: linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-bg2) 100%);
-  padding: 10px; overflow-y: auto;
+  width: 240px; 
+  background: linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-bg2) 100%);
+  padding: 10px; 
+  overflow-y: auto;
   box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  transition: width 0.3s ease; /* 이 한 줄만 추가 */
+}
+
+/* 이 스타일만 추가 */
+.sidebar.expanded {
+  width: 288px; /* 240px의 120% */
 }
 .sidebar .mode-buttons {
   display: flex; gap: 5px; margin-bottom: 10px;
@@ -903,6 +910,107 @@ td[data-field="api_manager"] input:not([value=""]) {
   height: 40px;
   animation: spin 1s linear infinite;
   margin-right: 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 언어 선택 버튼 스타일 개선 */
+.language-selector {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.lang-btn {
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 0.85em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lang-btn:hover {
+  background-color: #e0e0e0;
+  transform: translateY(-1px);
+}
+
+.lang-btn.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  font-weight: bold;
+}
+
+/* 헤더 레이아웃 개선 */
+.header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* 현황 번역 필드 스타일 수정 */
+th[data-field="현황번역"] {
+  color: white !important;  /* 글자색 강제 지정 */
+  background-color: var(--primary-color) !important;  /* 배경색 강제 지정 */
+  font-weight: bold !important;
+}
+
+th[data-field="현황번역"], td[data-field="현황번역"] {
+  min-width: 400px;
+}
+
+/* 현황 번역 필드 입력창 스타일 */
+td[data-field="현황번역"] input {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  width: 95%;
+}
+
+/* 번역 완료된 셀 강조 */
+td[data-field="현황번역"] input:not([value=""]) {
+  background-color: #eaf7ff;
+  border-color: #b8daff;
+}
+
+#translateBtn:hover {
+  background-color: #4a5a6b;
+}
+
+/* 번역 진행 중 스타일 */
+.translating {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* 번역 진행 표시기 */
+.translation-progress {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 15px 20px;
+  border-radius: 8px;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.translation-spinner {
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top: 3px solid white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
