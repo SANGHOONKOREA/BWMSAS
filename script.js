@@ -4230,9 +4230,21 @@ function openContentModal(text) {
   }
 }
 
-// 내용 보기 모달 닫기
 function closeContentModal() {
-  document.getElementById('contentModal').style.display = 'none';
+  const modal = document.getElementById('contentModal');
+  modal.style.display = 'none';
+  
+  // 히스토리 모달 위에서 사용된 경우 스타일 초기화
+  modal.style.zIndex = '';
+  modal.style.position = '';
+  modal.style.background = '';
+  
+  const modalContent = modal.querySelector('.modal-content');
+  if (modalContent) {
+    modalContent.style.zIndex = '';
+    modalContent.style.boxShadow = '';
+    modalContent.style.border = '';
+  }
 }
 
 // 내용 모달 전체화면 전환
@@ -5024,16 +5036,17 @@ function openHistorySummaryModal(summary, project, rowData, fullscreen = false) 
     existingModal.remove();
   }
   
-  // 모달 생성
-  const modal = document.createElement('div');
-  modal.id = 'historySummaryModal';
-  modal.style.cssText = 'display: block; position: fixed; z-index: 10005; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.3);';
-  
-  // 전체화면 적용
-  if (fullscreen) {
-    modal.classList.add('fullscreen');
-    modal.style.background = 'rgba(0, 0, 0, 0.7)';
-  }
+// 모달 생성
+const modal = document.createElement('div');
+modal.id = 'historyDataModal';
+modal.style.cssText = 'display: block; position: fixed; z-index: 10015; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5);';
+
+// 전체화면 적용
+if (fullscreen) {
+  modal.classList.add('fullscreen');
+  modal.style.background = 'rgba(0, 0, 0, 0.7)';
+  modal.style.zIndex = '10015'; // 전체화면일 때도 적절한 z-index
+}
   
   const modalContent = document.createElement('div');
   modalContent.className = 'modal-content';
@@ -5766,19 +5779,21 @@ function openHistoryDataModal(records, project, rowData, fullscreen = false) {
   modal.id = 'historyDataModal';
   modal.style.cssText = 'display: block; position: fixed; z-index: var(--z-modal-higher); left: 0; top: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5);';
   
-  // 전체화면 적용
-  if (fullscreen) {
-    modal.classList.add('fullscreen');
-    modal.style.background = 'rgba(0, 0, 0, 0.7)';
-  }
-  
-  const modalContent = document.createElement('div');
-  modalContent.className = 'modal-content';
-  if (fullscreen) {
-    modalContent.style.cssText = 'background: #fff; width: 100% !important; height: 100% !important; max-width: 100%; max-height: 100%; margin: 0 !important; border-radius: 0; padding: 20px; position: relative; overflow-y: auto;';
-  } else {
-    modalContent.style.cssText = 'background: #fff; margin: 5% auto; width: 1000px; border-radius: 6px; padding: 20px; position: relative; max-height: 85%; overflow-y: auto;';
-  }
+// openHistoryDataModal 함수에서 전체화면 설정 부분 수정
+if (fullscreen) {
+  modal.classList.add('fullscreen');
+  modal.style.background = 'rgba(0, 0, 0, 0.7)';
+  modal.style.zIndex = '10015';
+  modal.style.position = 'fixed'; // 명시적으로 fixed 설정
+}
+
+const modalContent = document.createElement('div');
+modalContent.className = 'modal-content';
+if (fullscreen) {
+  modalContent.style.cssText = 'background: #fff; width: 100% !important; height: 100% !important; max-width: 100%; max-height: 100%; margin: 0 !important; border-radius: 0; padding: 20px; position: relative; overflow-y: auto;';
+} else {
+  modalContent.style.cssText = 'background: #fff; margin: 5% auto; width: 1000px; border-radius: 6px; padding: 20px; position: relative; max-height: 85%; overflow-y: auto;';
+}
   
   // 닫기 버튼
   const closeBtn = document.createElement('span');
@@ -5831,37 +5846,225 @@ function openHistoryDataModal(records, project, rowData, fullscreen = false) {
   `;
   table.appendChild(thead);
   
-  const tbody = document.createElement('tbody');
-  records.forEach(rec => {
-    const tr = document.createElement('tr');
+// 히스토리 데이터 모달에서 테이블 생성 부분 수정
+const tbody = document.createElement('tbody');
+records.forEach(rec => {
+  const tr = document.createElement('tr');
+  
+  // 각 셀 생성 (클릭 시 전체 내용 표시)
+  ['asDate', 'plan', 'rec', 'res', 'tEnd'].forEach((field, idx) => {
+    const td = document.createElement('td');
+    td.style.cssText = 'border: 1px solid #ddd; padding: 8px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
     
-    // 각 셀 생성 (클릭 시 전체 내용 표시)
-    ['asDate', 'plan', 'rec', 'res', 'tEnd'].forEach((field, idx) => {
-      const td = document.createElement('td');
-      td.style.cssText = 'border: 1px solid #ddd; padding: 8px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; cursor: pointer; white-space: nowrap;';
+    const value = rec[field] || '-';
+    td.textContent = value;
+    td.title = value;
+    
+    // 빈 값이 아닌 경우에만 클릭 이벤트 추가
+    if (value !== '-' && value.trim() !== '') {
+      td.style.cursor = 'pointer';
+      td.style.backgroundColor = '#f8f9fa';
+      td.style.textDecoration = 'underline';
+      td.style.color = '#007bff';
+      td.classList.add('history-clickable-cell');
       
-      const value = rec[field] || '-';
-      td.textContent = value;
-      td.title = value;
-      
-      if (value !== '-') {
-        td.onclick = () => {
-          // openContentModal 호출 전에 모달 상태 확인
+      td.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        
+        console.log('히스토리 셀 클릭됨:', value);
+        
+        // 약간의 지연을 두고 모달 생성 (렌더링 완료 후)
+        setTimeout(() => {
           openContentModalOverHistory(value);
-        };
-      }
+        }, 50);
+      });
       
-      tr.appendChild(td);
-    });
+      // 마우스 오버 효과
+      td.addEventListener('mouseenter', function() {
+        this.style.backgroundColor = '#e3f2fd';
+        this.style.transform = 'scale(1.02)';
+      });
+      
+      td.addEventListener('mouseleave', function() {
+        this.style.backgroundColor = '#f8f9fa';
+        this.style.transform = 'scale(1)';
+      });
+    }
     
-    tbody.appendChild(tr);
+    tr.appendChild(td);
   });
+  
+  tbody.appendChild(tr);
+});
   table.appendChild(tbody);
   
   modalContent.appendChild(table);
   modal.appendChild(modalContent);
   document.body.appendChild(modal);
 }
+
+function openContentModalOverHistory(text) {
+  // 히스토리 데이터 모달 찾기
+  const historyModal = document.getElementById('historyDataModal');
+  if (!historyModal) {
+    console.error('히스토리 모달을 찾을 수 없습니다.');
+    return;
+  }
+  
+  // 기존 내용 모달이 있으면 제거
+  const existingContentModal = historyModal.querySelector('.history-content-overlay');
+  if (existingContentModal) {
+    existingContentModal.remove();
+  }
+  
+  // 히스토리 모달 내부에 오버레이 생성
+  const overlay = document.createElement('div');
+  overlay.className = 'history-content-overlay';
+  overlay.style.cssText = `
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: rgba(0, 0, 0, 0.8) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 9999 !important;
+    backdrop-filter: blur(4px) !important;
+  `;
+  
+  // 내용 모달 박스 생성
+  const contentBox = document.createElement('div');
+  contentBox.style.cssText = `
+    background: #fff !important;
+    width: 80% !important;
+    max-width: 800px !important;
+    max-height: 80% !important;
+    border-radius: 12px !important;
+    padding: 30px !important;
+    position: relative !important;
+    overflow-y: auto !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5) !important;
+    border: 3px solid #007bff !important;
+    animation: contentModalSlideIn 0.3s ease-out !important;
+  `;
+  
+  // 닫기 버튼
+  const closeBtn = document.createElement('span');
+  closeBtn.innerHTML = '&times;';
+  closeBtn.style.cssText = `
+    position: absolute !important;
+    right: 15px !important;
+    top: 15px !important;
+    font-size: 28px !important;
+    cursor: pointer !important;
+    color: #999 !important;
+    width: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    transition: all 0.3s ease !important;
+    z-index: 1 !important;
+  `;
+  
+  closeBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    overlay.remove();
+  });
+  
+  closeBtn.addEventListener('mouseenter', function() {
+    this.style.color = '#333';
+    this.style.background = '#f8f9fa';
+  });
+  
+  closeBtn.addEventListener('mouseleave', function() {
+    this.style.color = '#999';
+    this.style.background = 'transparent';
+  });
+  
+  // 제목
+  const title = document.createElement('h2');
+  title.textContent = '전체 내용';
+  title.style.cssText = `
+    margin-top: 0 !important;
+    margin-bottom: 20px !important;
+    color: #007bff !important;
+    font-size: 1.4em !important;
+    font-weight: 600 !important;
+    padding-right: 40px !important;
+  `;
+  
+  // 내용
+  const contentDiv = document.createElement('div');
+  contentDiv.innerHTML = convertMarkdownToHTML(text);
+  contentDiv.style.cssText = `
+    white-space: pre-wrap !important;
+    line-height: 1.6 !important;
+    font-size: 1em !important;
+    max-height: 400px !important;
+    overflow-y: auto !important;
+    border: 2px solid #e9ecef !important;
+    padding: 20px !important;
+    border-radius: 8px !important;
+    background: #fafbfc !important;
+  `;
+  
+  // 스크롤바 스타일
+  contentDiv.innerHTML += `
+    <style>
+      .history-content-overlay div::-webkit-scrollbar {
+        width: 8px;
+      }
+      .history-content-overlay div::-webkit-scrollbar-track {
+        background: #f1f3f4;
+        border-radius: 4px;
+      }
+      .history-content-overlay div::-webkit-scrollbar-thumb {
+        background: #c1c8cd;
+        border-radius: 4px;
+      }
+    </style>
+  `;
+  
+  // 요소들 조립
+  contentBox.appendChild(closeBtn);
+  contentBox.appendChild(title);
+  contentBox.appendChild(contentDiv);
+  overlay.appendChild(contentBox);
+  
+  // 히스토리 모달에 추가
+  historyModal.appendChild(overlay);
+  
+  // ESC 키로 닫기
+  const escapeHandler = function(e) {
+    if (e.key === 'Escape') {
+      overlay.remove();
+      document.removeEventListener('keydown', escapeHandler);
+    }
+  };
+  document.addEventListener('keydown', escapeHandler);
+  
+  // 오버레이 배경 클릭으로 닫기
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) {
+      overlay.remove();
+      document.removeEventListener('keydown', escapeHandler);
+    }
+  });
+  
+  // 내용 박스 클릭 시 이벤트 전파 방지
+  contentBox.addEventListener('click', function(e) {
+    e.stopPropagation();
+  });
+  
+  console.log('히스토리 내부 내용 모달 생성됨');
+}
+
 
 // 히스토리 데이터 모달 전체화면 토글 함수
 function toggleHistoryDataFullscreen() {
