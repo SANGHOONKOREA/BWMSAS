@@ -1481,6 +1481,11 @@ th[data-field="수정일"], td[data-field="수정일"] { min-width: 120px; }
 /* =================================
    관리자 비밀번호 모달 - 보안 강화
    ================================= */
+#adminPasswordModal {
+  z-index: var(--z-modal-highest);
+  background: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(4px) !important;
+}
 
 #adminPasswordModal .modal-content {
   width: 400px;
@@ -2739,7 +2744,69 @@ th[data-field="수정일"], td[data-field="수정일"] { min-width: 120px; }
   background: #5a6268;
   transform: translateY(-2px);
 }
+/* 히스토리 테이블 내 AI 요약 버튼들 */
+#historyDataModal table td button {
+  padding: 4px 8px;
+  margin: 1px 0;
+  font-size: 0.75em;
+  border-radius: 3px;
+  white-space: nowrap;
+  width: 100%;
+  text-align: center;
+  transition: all 0.2s ease;
+}
 
+/* AI 요약 버튼 */
+#historyDataModal table td button[style*="background: #007bff"] {
+  background: #007bff !important;
+}
+
+#historyDataModal table td button[style*="background: #007bff"]:hover {
+  background: #0056b3 !important;
+  transform: translateY(-1px);
+}
+
+/* 요약 보기 버튼 */
+#historyDataModal table td button[style*="background: #28a745"] {
+  background: #28a745 !important;
+}
+
+#historyDataModal table td button[style*="background: #28a745"]:hover {
+  background: #218838 !important;
+  transform: translateY(-1px);
+}
+
+/* 재요약 버튼 */
+#historyDataModal table td button[style*="background: #ffc107"] {
+  background: #ffc107 !important;
+  color: #212529 !important;
+}
+
+#historyDataModal table td button[style*="background: #ffc107"]:hover {
+  background: #e0a800 !important;
+  transform: translateY(-1px);
+}
+
+/* AI 요약 열 특별 스타일 */
+#historyDataModal table th:first-child {
+  background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
+  color: white;
+  text-align: center;
+  font-weight: 600;
+}
+
+#historyDataModal table td:first-child {
+  background-color: #f8f6ff !important;
+  border-left: 3px solid #6f42c1;
+  vertical-align: middle;
+  text-align: center;
+  min-width: 120px;
+  padding: 6px;
+}
+
+#historyDataModal table td:first-child:hover {
+  background-color: #f3f0ff !important;
+}
 /* =================================
    전체화면 버튼 스타일
    ================================= */
@@ -3155,7 +3222,39 @@ img, video {
   transition: all 0.2s ease;
 }
 
+/* =================================
+   추가 유틸리티 클래스
+   ================================= */
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+.font-bold { font-weight: bold; }
+.font-normal { font-weight: normal; }
+.cursor-pointer { cursor: pointer; }
+.cursor-not-allowed { cursor: not-allowed; }
+.opacity-50 { opacity: 0.5; }
+.opacity-75 { opacity: 0.75; }
 
+/* 마진/패딩 유틸리티 */
+.m-0 { margin: 0; }
+.p-0 { padding: 0; }
+.mt-1 { margin-top: 0.25rem; }
+.mb-1 { margin-bottom: 0.25rem; }
+.pt-1 { padding-top: 0.25rem; }
+.pb-1 { padding-bottom: 0.25rem; }
+
+/* 색상 유틸리티 */
+.text-primary { color: var(--primary-color); }
+.text-success { color: var(--success-color); }
+.text-warning { color: var(--warning-color); }
+.text-danger { color: var(--danger-color); }
+.text-info { color: var(--info-color); }
+
+.bg-primary { background-color: var(--primary-color); }
+.bg-success { background-color: var(--success-color); }
+.bg-warning { background-color: var(--warning-color); }
+.bg-danger { background-color: var(--danger-color); }
+.bg-info { background-color: var(--info-color); }
 
 /* =================================
    종료
