@@ -60,7 +60,6 @@ let isFilterActive = false; // 필터 활성화 여부
 // 전역 변수 섹션에 추가
 let modifiedRows = new Set();
 
-
 // 전역 변수 추가 (파일 상단에 추가해야 함)
 let currentUser = null;
 let currentUid = null;
@@ -77,6 +76,7 @@ const aiHistoryPath = 'as-service/ai_history';
 const aiConfigPath = "as-service/admin/aiConfig";
 const apiConfigPath = "as-service/admin/apiConfig";
 const userMetaPath = 'as-service/user_meta';
+const adminPasswordPath = 'as-service/admin/password'; // 관리자 비밀번호 경로
 
 // 전역 변수 섹션에 추가
 const mainUsersPath = 'users'; // main.js에서 사용하는 경로
@@ -99,6 +99,29 @@ let g_apiConfig = {
 // 현재 선택된 언어
 let currentLanguage = 'ko';
 
+// 테이블 표시 모드 (기본/확장)
+let isExtendedView = false;
+
+// 관리자 비밀번호 저장 변수
+let adminPassword = 'snsys1234';
+
+// 기본 테이블 열 정의
+const basicColumns = [
+  'checkbox', '공번', '공사', 'imo', 'hull', 'shipName', 'repMail', 'shipType', 
+  'shipowner', 'group', 'shipyard', 'contract', 'asType', 'delivery', 'warranty', 
+  'manager', '현황', '현황번역', '동작여부', 'history', 'AS접수일자', '기술적종료일', 
+  '경과일', '정상지연', '지연 사유', '수정일'
+];
+
+// 모든 테이블 열 정의
+const allColumns = [
+  'checkbox', '공번', '공사', 'imo', 'api_name', 'api_owner', 'api_manager', 'api_apply',
+  'hull', 'shipName', 'repMail', 'shipType', 'scale', '구분', 'shipowner', 'major', 
+  'group', 'shipyard', 'contract', 'asType', 'delivery', 'warranty', 'prevManager', 
+  'manager', '현황', '현황번역', 'ai_summary', '동작여부', '조치계획', '접수내용', 
+  '조치결과', 'history', 'AS접수일자', '기술적종료일', '경과일', '정상지연', '지연 사유', '수정일'
+];
+
 // 언어별 텍스트 사전
 const translations = {
   // 한국어 (기본)
@@ -109,6 +132,8 @@ const translations = {
     "로그아웃": "로그아웃",
     "연결 상태": "연결 상태",
     "확인 중": "확인 중",
+    "기본": "기본",
+    "확장": "확장",
     "행 추가": "행 추가",
     "선택 행 삭제": "선택 행 삭제",
     "저장": "저장",
@@ -129,13 +154,16 @@ const translations = {
     "AI 설정 관리": "AI 설정 관리",
     "API 설정 관리": "API 설정 관리",
     "연결됨": "연결됨",
+    "히스토리": "히스토리",
+    "담당자별 현황": "담당자별 현황",
     
     // 상태 카드
-    "정상A": "정상A",
-    "정상B": "정상B",
-    "유상정상": "유상정상",
+    "정상": "정상",
     "부분동작": "부분동작",
     "동작불가": "동작불가",
+    "30일경과": "30일경과",
+    "60일경과": "60일경과",
+    "90일경과": "90일경과",
     
     // 필터 레이블
     "IMO NO.": "IMO NO.",
@@ -148,6 +176,8 @@ const translations = {
     "AS 구분": "AS 구분",
     "현 담당": "현 담당",
     "동작여부": "동작여부",
+    "SHIP TYPE": "SHIP TYPE",
+    "SHIPYARD": "SHIPYARD",
     "전체": "전체",
     "무상": "무상",
     "유상": "유상",
@@ -160,12 +190,10 @@ const translations = {
     "OWNER": "OWNER",
     "MANAGER": "MANAGER",
     "반영": "반영",
-    "SHIP TYPE": "SHIP TYPE",
     "SCALE": "SCALE",
     "구분": "구분",
     "주요선사": "주요선사",
     "그룹": "그룹",
-    "SHIPYARD": "SHIPYARD",
     "계약": "계약",
     "인도일": "인도일",
     "보증종료일": "보증종료일",
@@ -182,6 +210,7 @@ const translations = {
     "경과일": "경과일",
     "정상지연": "정상지연",
     "지연 사유": "지연 사유",
+    "수정일": "수정일",
     
     // 모달 제목
     "변경 이력": "변경 이력",
@@ -195,9 +224,7 @@ const translations = {
     "API 데이터 가져오기": "API 데이터 가져오기",
     "비밀번호 초기화": "비밀번호 초기화",
     "비밀번호 변경": "비밀번호 변경",
-    "반영": "반영",
-    "SHIPYARD": "SHIPYARD",
-    "경과일": "경과일"
+    "관리자 비밀번호": "관리자 비밀번호"
   },
   
   // 영어
@@ -208,6 +235,8 @@ const translations = {
     "로그아웃": "Logout",
     "연결 상태": "Connection Status",
     "확인 중": "Checking",
+    "기본": "Basic",
+    "확장": "Extended",
     "행 추가": "Add Row",
     "선택 행 삭제": "Delete Selected",
     "저장": "Save",
@@ -228,13 +257,16 @@ const translations = {
     "AI 설정 관리": "AI Configuration",
     "API 설정 관리": "API Configuration",
     "연결됨": "Connected",
+    "히스토리": "History",
+    "담당자별 현황": "Manager Status",
     
     // 상태 카드
-    "정상A": "Normal A",
-    "정상B": "Normal B",
-    "유상정상": "Paid Normal",
+    "정상": "Normal",
     "부분동작": "Partial Operation",
     "동작불가": "Inoperable",
+    "30일경과": "30 Days+",
+    "60일경과": "60 Days+",
+    "90일경과": "90 Days+",
     
     // 필터 레이블
     "IMO NO.": "IMO NO.",
@@ -247,6 +279,8 @@ const translations = {
     "AS 구분": "AS Type",
     "현 담당": "Current Manager",
     "동작여부": "Operation Status",
+    "SHIP TYPE": "SHIP TYPE",
+    "SHIPYARD": "SHIPYARD",
     "전체": "All",
     "무상": "Free",
     "유상": "Paid",
@@ -259,12 +293,10 @@ const translations = {
     "OWNER": "OWNER",
     "MANAGER": "MANAGER",
     "반영": "Apply",
-    "SHIP TYPE": "SHIP TYPE",
     "SCALE": "SCALE",
     "구분": "Category",
     "주요선사": "Major Shipping",
     "그룹": "Group",
-    "SHIPYARD": "SHIPYARD",
     "계약": "Contract",
     "인도일": "Delivery Date",
     "보증종료일": "Warranty End",
@@ -281,6 +313,7 @@ const translations = {
     "경과일": "Elapsed Days",
     "정상지연": "Normal Delay",
     "지연 사유": "Delay Reason",
+    "수정일": "Modified Date",
     
     // 모달 제목
     "변경 이력": "Change History",
@@ -294,9 +327,7 @@ const translations = {
     "API 데이터 가져오기": "API Data Retrieval",
     "비밀번호 초기화": "Reset Password",
     "비밀번호 변경": "Change Password",
-    "반영": "Apply",
-    "SHIPYARD": "SHIPYARD",
-    "경과일": "Elapsed Days"
+    "관리자 비밀번호": "Administrator Password"
   },
   
   // 중국어
@@ -307,6 +338,8 @@ const translations = {
     "로그아웃": "登出",
     "연결 상태": "连接状态",
     "확인 중": "确认中",
+    "기본": "基本",
+    "확장": "扩展",
     "행 추가": "添加行",
     "선택 행 삭제": "删除所选",
     "저장": "保存",
@@ -327,13 +360,16 @@ const translations = {
     "AI 설정 관리": "AI设置管理",
     "API 설정 관리": "API设置管理",
     "연결됨": "已连接",
+    "히스토리": "历史",
+    "담당자별 현황": "负责人状态",
     
     // 상태 카드
-    "정상A": "正常A",
-    "정상B": "正常B",
-    "유상정상": "有偿正常",
+    "정상": "正常",
     "부분동작": "部分运行",
     "동작불가": "无法运行",
+    "30일경과": "30天+",
+    "60일경과": "60天+",
+    "90일경과": "90天+",
     
     // 필터 레이블
     "IMO NO.": "IMO号码",
@@ -346,6 +382,8 @@ const translations = {
     "AS 구분": "AS类型",
     "현 담당": "当前负责人",
     "동작여부": "运行状态",
+    "SHIP TYPE": "船舶类型",
+    "SHIPYARD": "造船厂",
     "전체": "全部",
     "무상": "免费",
     "유상": "有偿",
@@ -358,12 +396,10 @@ const translations = {
     "OWNER": "所有者",
     "MANAGER": "管理者",
     "반영": "应用",
-    "SHIP TYPE": "船舶类型",
     "SCALE": "规模",
     "구분": "类别",
     "주요선사": "主要船公司",
     "그룹": "组别",
-    "SHIPYARD": "造船厂",
     "계약": "合同",
     "인도일": "交付日期",
     "보증종료일": "保修结束日",
@@ -380,6 +416,7 @@ const translations = {
     "경과일": "经过天数",
     "정상지연": "正常延迟",
     "지연 사유": "延迟原因",
+    "수정일": "修改日期",
     
     // 모달 제목
     "변경 이력": "变更历史",
@@ -393,9 +430,7 @@ const translations = {
     "API 데이터 가져오기": "获取API数据",
     "비밀번호 초기화": "重置密码",
     "비밀번호 변경": "更改密码",
-    "반영": "应用",
-    "SHIPYARD": "造船厂",
-    "경과일": "经过天数"
+    "관리자 비밀번호": "管理员密码"
   },
   
   // 일본어
@@ -406,6 +441,8 @@ const translations = {
     "로그아웃": "ログアウト",
     "연결 상태": "接続状態",
     "확인 중": "確認中",
+    "기본": "基本",
+    "확장": "拡張",
     "행 추가": "行追加",
     "선택 행 삭제": "選択行削除",
     "저장": "保存",
@@ -426,13 +463,16 @@ const translations = {
     "AI 설정 관리": "AI設定管理",
     "API 설정 관리": "API設定管理",
     "연결됨": "接続済み",
+    "히스토리": "履歴",
+    "담당자별 현황": "担当者別状況",
     
     // 상태 카드
-    "정상A": "正常A",
-    "정상B": "正常B",
-    "유상정상": "有償正常",
+    "정상": "正常",
     "부분동작": "部分動作",
     "동작불가": "動作不可",
+    "30일경과": "30日+",
+    "60일경과": "60日+",
+    "90일경과": "90日+",
     
     // 필터 레이블
     "IMO NO.": "IMO番号",
@@ -445,6 +485,8 @@ const translations = {
     "AS 구분": "AS区分",
     "현 담당": "現担当者",
     "동작여부": "動作状態",
+    "SHIP TYPE": "船舶タイプ",
+    "SHIPYARD": "造船所",
     "전체": "全体",
     "무상": "無償",
     "유상": "有償",
@@ -457,12 +499,10 @@ const translations = {
     "OWNER": "所有者",
     "MANAGER": "管理者",
     "반영": "反映",
-    "SHIP TYPE": "船舶タイプ",
     "SCALE": "規模",
     "구분": "区分",
     "주요선사": "主要船社",
     "그룹": "グループ",
-    "SHIPYARD": "造船所",
     "계약": "契約",
     "인도일": "引渡日",
     "보증종료일": "保証終了日",
@@ -479,6 +519,7 @@ const translations = {
     "경과일": "経過日数",
     "정상지연": "正常遅延",
     "지연 사유": "遅延理由",
+    "수정일": "修正日",
     
     // 모달 제목
     "변경 이력": "変更履歴",
@@ -492,9 +533,7 @@ const translations = {
     "API 데이터 가져오기": "APIデータ取得",
     "비밀번호 초기화": "パスワードリセット",
     "비밀번호 변경": "パスワード変更",
-    "반영": "反映",
-    "SHIPYARD": "造船所",
-    "경과일": "経過日数"
+    "관리자 비밀번호": "管理者パスワード"
   }
 };
 
@@ -513,6 +552,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 언어 초기화
   initializeLanguage();
+  
+  // 관리자 비밀번호 로드
+  loadAdminPassword();
 });
 
 // 모든 이벤트 리스너 등록 함수 - 성능 개선을 위해 일괄 처리
@@ -521,58 +563,74 @@ function registerEventListeners() {
   document.getElementById('btnManager').addEventListener('click', () => switchSideMode('manager'));
   document.getElementById('btnOwner').addEventListener('click', () => switchSideMode('owner'));
   
+  // 기본/확장 뷰 버튼
+  document.getElementById('basicViewBtn').addEventListener('click', () => switchTableView(false));
+  document.getElementById('extendedViewBtn').addEventListener('click', () => switchTableView(true));
+  
   // 사용자 관리 관련
-  document.getElementById('userManageBtn').addEventListener('click', openUserModal);
+  document.getElementById('userManageBtn').addEventListener('click', () => checkAdminPassword(openUserModal));
   document.getElementById('addUserConfirmBtn').addEventListener('click', addNewUser);
   document.getElementById('deleteSelectedUsersBtn').addEventListener('click', deleteSelectedUsers);
   
   // AI 설정 관련
-  document.getElementById('aiConfigBtn').addEventListener('click', openAiConfigModal);
+  document.getElementById('aiConfigBtn').addEventListener('click', () => checkAdminPassword(openAiConfigModal));
   document.getElementById('saveAiConfigBtn').addEventListener('click', saveAiConfig);
   document.getElementById('ownerAISummaryBtn').addEventListener('click', openOwnerAIModal);
   
   // API 설정 관련
-  document.getElementById('apiConfigBtn').addEventListener('click', openApiConfigModal);
+  document.getElementById('apiConfigBtn').addEventListener('click', () => checkAdminPassword(openApiConfigModal));
   document.getElementById('saveApiConfigBtn').addEventListener('click', saveApiConfig);
-  document.getElementById('apiRefreshAllBtn').addEventListener('click', refreshAllVessels);
+  document.getElementById('apiRefreshAllBtn').addEventListener('click', () => checkAdminPassword(refreshAllVessels));
   
   // 테이블 관련
   document.getElementById('asTable').addEventListener('click', handleTableClick);
   document.getElementById('selectAll').addEventListener('change', toggleSelectAll);
-  document.getElementById('addRowBtn').addEventListener('click', addNewRow);
-  document.getElementById('deleteRowBtn').addEventListener('click', deleteSelectedRows);
+  document.getElementById('addRowBtn').addEventListener('click', () => checkAdminPassword(addNewRow));
+  document.getElementById('deleteRowBtn').addEventListener('click', () => checkAdminPassword(deleteSelectedRows));
   document.getElementById('saveBtn').addEventListener('click', saveAllData);
   document.getElementById('loadBtn').addEventListener('click', () => renderTable(true));
   
   // 엑셀 관련
   document.getElementById('downloadExcelBtn').addEventListener('click', downloadExcel);
-  document.getElementById('uploadExcelBtn').addEventListener('click', () => document.getElementById('excelModal').style.display = 'block');
+  document.getElementById('uploadExcelBtn').addEventListener('click', () => checkAdminPassword(() => document.getElementById('excelModal').style.display = 'block'));
   document.getElementById('excelReplaceBtn').addEventListener('click', () => { document.getElementById('excelModal').style.display = 'none'; proceedExcelUpload("replace"); });
   document.getElementById('excelAppendBtn').addEventListener('click', () => { document.getElementById('excelModal').style.display = 'none'; proceedExcelUpload("append"); });
   document.getElementById('excelCancelBtn').addEventListener('click', () => document.getElementById('excelModal').style.display = 'none');
   
   // AS 현황 업로드
-  document.getElementById('uploadAsStatusBtn').addEventListener('click', () => document.getElementById('uploadAsStatusInput').click());
+  document.getElementById('uploadAsStatusBtn').addEventListener('click', () => checkAdminPassword(() => document.getElementById('uploadAsStatusInput').click()));
   document.getElementById('uploadAsStatusInput').addEventListener('change', handleAsStatusUpload);
   
   // 히스토리 관련
-  document.getElementById('historyBtn').addEventListener('click', showHistoryModal);
-  document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
+  document.getElementById('historyBtn').addEventListener('click', () => checkAdminPassword(showHistoryModal));
+  document.getElementById('clearHistoryBtn').addEventListener('click', () => checkAdminPassword(clearHistory));
 
-// registerEventListeners 함수에 이벤트 추가
-document.getElementById('managerStatusBtn').addEventListener('click', openManagerStatusModal);
+  // 담당자별 현황 버튼
+  document.getElementById('managerStatusBtn').addEventListener('click', openManagerStatusModal);
 
-// 일정 확인 버튼 추가
-const scheduleCheckBtn = document.createElement('button');
-scheduleCheckBtn.id = 'scheduleCheckBtn';
-scheduleCheckBtn.textContent = '일정 확인';
-scheduleCheckBtn.style.cssText = 'background:#17a2b8; color:#fff; margin-left:10px;';
-scheduleCheckBtn.addEventListener('click', confirmCurrentUserSchedule);
+  // 일정 확인 버튼 추가
+  const scheduleCheckBtn = document.createElement('button');
+  scheduleCheckBtn.id = 'scheduleCheckBtn';
+  scheduleCheckBtn.textContent = '일정 확인';
+  scheduleCheckBtn.style.cssText = 'background:#17a2b8; color:#fff; margin-left:10px;';
+  scheduleCheckBtn.addEventListener('click', confirmCurrentUserSchedule);
 
-// 로그아웃 버튼 옆에 추가
-const logoutBtn = document.getElementById('logoutBtn');
-if (logoutBtn && logoutBtn.parentNode) {
-  logoutBtn.parentNode.insertBefore(scheduleCheckBtn, logoutBtn);
+  // 로그아웃 버튼 옆에 추가
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn && logoutBtn.parentNode) {
+    logoutBtn.parentNode.insertBefore(scheduleCheckBtn, logoutBtn);
+  }
+
+// 테이블 스크롤 이벤트 처리 - 헤더 고정 효과
+const tableWrapper = document.getElementById('tableWrapper');
+if (tableWrapper) {
+  tableWrapper.addEventListener('scroll', function() {
+    if (this.scrollTop > 0) {
+      this.classList.add('scrolled');
+    } else {
+      this.classList.remove('scrolled');
+    }
+  });
 }
 
   // 번역 관련
@@ -604,29 +662,50 @@ if (logoutBtn && logoutBtn.parentNode) {
   document.getElementById('resetEmail').addEventListener('keypress', (e) => { if (e.key === 'Enter') e.preventDefault(), document.getElementById('sendResetLinkBtn').click(); });
   document.getElementById('logoutBtn').addEventListener('click', logoutUser);
   
-  // 키보드 이벤트 처리
+  // 키보드 이벤트 처리 - 모든 요소에 null 체크 추가
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      if (document.getElementById('forgotPasswordModal').style.display === 'block') {
+      // 비밀번호 찾기 모달
+      const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+      if (forgotPasswordModal && forgotPasswordModal.style.display === 'block') {
         closeForgotPasswordModal();
       }
-      if (document.getElementById('changePasswordModal').style.display === 'block' &&
-          document.getElementById('changePasswordModal').getAttribute('data-first-login') !== 'true') {
-        document.getElementById('changePasswordModal').style.display = 'none';
+      
+      // 비밀번호 변경 모달 - 안전한 접근
+      const changePasswordModal = document.getElementById('changePasswordModal');
+      if (changePasswordModal && 
+          changePasswordModal.style.display === 'block' &&
+          changePasswordModal.getAttribute('data-first-login') !== 'true') {
+        changePasswordModal.style.display = 'none';
       }
-      if (document.getElementById('contentModal').style.display === 'block') {
+      
+      // 내용 모달
+      const contentModal = document.getElementById('contentModal');
+      if (contentModal && contentModal.style.display === 'block') {
         closeContentModal();
       }
-      if (document.getElementById('ownerAIModal').style.display === 'block') {
-        document.getElementById('ownerAIModal').style.display = 'none';
+      
+      // 선사별 AI 모달
+      const ownerAIModal = document.getElementById('ownerAIModal');
+      if (ownerAIModal && ownerAIModal.style.display === 'block') {
+        ownerAIModal.style.display = 'none';
       }
-      if (document.getElementById('aiProgressModal').style.display === 'block') {
-        document.getElementById('aiProgressModal').style.display = 'none';
+      
+      // AI 진행 모달
+      const aiProgressModal = document.getElementById('aiProgressModal');
+      if (aiProgressModal && aiProgressModal.style.display === 'block') {
+        aiProgressModal.style.display = 'none';
       }
-      if (document.getElementById('apiProgressModal').style.display === 'block') {
-        document.getElementById('apiProgressModal').style.display = 'none';
+      
+      // API 진행 모달
+      const apiProgressModal = document.getElementById('apiProgressModal');
+      if (apiProgressModal && apiProgressModal.style.display === 'block') {
+        apiProgressModal.style.display = 'none';
       }
-      if (document.getElementById('apiConfigModal').style.display === 'block') {
+      
+      // API 설정 모달
+      const apiConfigModal = document.getElementById('apiConfigModal');
+      if (apiConfigModal && apiConfigModal.style.display === 'block') {
         closeApiConfigModal();
       }
     }
@@ -645,18 +724,135 @@ if (logoutBtn && logoutBtn.parentNode) {
       changeLanguage(lang);
     });
   });
+
+  // 경과일 상태 카드 클릭 이벤트 리스너
+  setupElapsedDayFilters();
+}
+
+// 관리자 비밀번호 로드
+async function loadAdminPassword() {
+  try {
+    const snapshot = await db.ref(adminPasswordPath).once('value');
+    if (snapshot.exists()) {
+      adminPassword = snapshot.val();
+    } else {
+      // 관리자 비밀번호가 없으면 초기값 설정
+      await db.ref(adminPasswordPath).set('snsys1234');
+      adminPassword = 'snsys1234';
+    }
+  } catch (error) {
+    console.error('관리자 비밀번호 로드 오류:', error);
+    adminPassword = 'snsys1234'; // 기본값 사용
+  }
+}
+
+// 관리자 비밀번호 확인 함수
+function checkAdminPassword(callback) {
+  if (adminAuthorized) {
+    callback();
+    return;
+  }
+
+  const passwordInput = prompt("관리자 비밀번호를 입력하세요:");
+  if (passwordInput === null) return; // 취소 시
+
+  if (passwordInput === adminPassword) {
+    adminAuthorized = true;
+    // 5분간 권한 유지
+    setTimeout(() => {
+      adminAuthorized = false;
+    }, 5 * 60 * 1000);
+    callback();
+  } else {
+    alert("관리자 비밀번호가 올바르지 않습니다.");
+  }
+}
+
+// 테이블 뷰 전환 함수
+function switchTableView(extended) {
+  isExtendedView = extended;
+  
+  // 버튼 활성화 상태 변경
+  document.getElementById('basicViewBtn').classList.toggle('active', !extended);
+  document.getElementById('extendedViewBtn').classList.toggle('active', extended);
+  
+  // 테이블 다시 렌더링
+  saveFilterState();
+  renderTable(true);
+  restoreFilterState();
+}
+
+// 경과일 필터 설정
+function setupElapsedDayFilters() {
+  // 30일, 60일, 90일 경과 카드에 클릭 이벤트 추가
+  document.getElementById('count30Days').parentElement.addEventListener('click', () => filterByElapsedDays(30));
+  document.getElementById('count60Days').parentElement.addEventListener('click', () => filterByElapsedDays(60));
+  document.getElementById('count90Days').parentElement.addEventListener('click', () => filterByElapsedDays(90));
+}
+
+// 경과일별 필터링
+function filterByElapsedDays(days) {
+  // 모든 필터 초기화
+  clearFilters();
+  
+  // 필터된 데이터 찾기
+  const today = new Date();
+  const filteredData = asData.filter(row => {
+    if (row["기술적종료일"]) return false; // 기술적 종료된 것은 제외
+    if (!row["AS접수일자"]) return false; // AS 접수일자가 없는 것은 제외
+    
+    const asDate = new Date(row["AS접수일자"] + "T00:00");
+    if (isNaN(asDate.getTime())) return false;
+    
+    const diffDays = Math.floor((today - asDate) / (1000 * 3600 * 24));
+    return diffDays >= days;
+  });
+  
+  // 테이블에 필터된 데이터 표시
+  renderFilteredData(filteredData);
+}
+
+// 필터된 데이터 렌더링
+function renderFilteredData(filteredData) {
+  lastRenderedData = filteredData;
+  isFilterActive = false; // 필터가 아닌 특별 조회로 처리
+  
+  // 테이블 렌더링
+  const tbody = document.getElementById('asBody');
+  tbody.innerHTML = '';
+  
+  // 상태 집계
+  const counts = {정상: 0, 부분동작: 0, 동작불가: 0};
+  
+  filteredData.forEach(row => {
+    if (counts.hasOwnProperty(row.동작여부)) counts[row.동작여부]++;
+    
+    const tr = createTableRow(row, counts);
+    tbody.appendChild(tr);
+  });
+  
+  // 상태 카드 업데이트
+  updateStatusCounts(counts);
+  
+  // 경과일 카드 업데이트
+  updateElapsedDayCounts();
+  
+  // 사이드바 목록 갱신
+  updateSidebarList();
 }
 
 // 필터 변경 이벤트에 디바운스 적용 - 성능 개선
 function setupFilterDebounce() {
-  const filters = ['filterIMO', 'filterHull', 'filterName', 'filterOwner', 'filterMajor', 'filterRepMail', 'filterGroup', 'filterAsType', 'filterManager', 'filterActive'];
+  const filters = ['filterIMO', 'filterHull', 'filterName', 'filterOwner', 'filterMajor', 'filterRepMail', 'filterGroup', 'filterAsType', 'filterManager', 'filterActive', 'filterShipType', 'filterShipyard'];
   
   filters.forEach(id => {
     const element = document.getElementById(id);
-    if (element.tagName === 'SELECT') {
-      element.addEventListener('change', debounceRenderTable);
-    } else {
-      element.addEventListener('input', debounceRenderTable);
+    if (element) {
+      if (element.tagName === 'SELECT') {
+        element.addEventListener('change', debounceRenderTable);
+      } else {
+        element.addEventListener('input', debounceRenderTable);
+      }
     }
   });
 }
@@ -684,7 +880,9 @@ function saveFilterState() {
     group: document.getElementById('filterGroup').value,
     asType: document.getElementById('filterAsType').value,
     manager: document.getElementById('filterManager').value,
-    active: document.getElementById('filterActive').value
+    active: document.getElementById('filterActive').value,
+    shipType: document.getElementById('filterShipType').value,
+    shipyard: document.getElementById('filterShipyard').value
   };
   
   // 필터가 하나라도 있으면 필터 활성화
@@ -703,6 +901,12 @@ function restoreFilterState() {
     document.getElementById('filterAsType').value = currentFilterState.asType || '';
     document.getElementById('filterManager').value = currentFilterState.manager || '';
     document.getElementById('filterActive').value = currentFilterState.active || '';
+    if (document.getElementById('filterShipType')) {
+      document.getElementById('filterShipType').value = currentFilterState.shipType || '';
+    }
+    if (document.getElementById('filterShipyard')) {
+      document.getElementById('filterShipyard').value = currentFilterState.shipyard || '';
+    }
   }
 }
 
@@ -711,55 +915,62 @@ function renderTableHeaders() {
   const thead = document.querySelector('#asTable thead tr');
   if (!thead) return;
   
+  // 현재 뷰 모드에 따른 열 정의
+  const columnsToShow = isExtendedView ? allColumns : basicColumns;
+  
   // 헤더 정의 (필드명과 기본 텍스트)
-  const headers = [
-    { field: null, text: '', isCheckbox: true },
-    { field: '공번', text: '공번' },
-    { field: '공사', text: '공사' },
-    { field: 'imo', text: 'IMO NO.' },
-    { field: 'api_name', text: 'NAME' },
-    { field: 'api_owner', text: 'OWNER' },
-    { field: 'api_manager', text: 'MANAGER' },
-    { field: null, text: '반영' },
-    { field: 'hull', text: 'HULL NO.' },
-    { field: 'shipName', text: 'SHIPNAME' },
-    { field: 'repMail', text: '호선 대표메일' },
-    { field: 'shipType', text: 'SHIP TYPE' },
-    { field: 'scale', text: 'SCALE' },
-    { field: '구분', text: '구분' },
-    { field: 'shipowner', text: 'SHIPOWNER' },
-    { field: 'major', text: '주요선사' },
-    { field: 'group', text: '그룹' },
-    { field: 'shipyard', text: 'SHIPYARD' },
-    { field: 'contract', text: '계약' },
-    { field: 'asType', text: 'AS 구분' },
-    { field: 'delivery', text: '인도일' },
-    { field: 'warranty', text: '보증종료일' },
-    { field: 'prevManager', text: '전 담당' },
-    { field: 'manager', text: '현 담당' },
-    { field: '현황', text: '현황' },
-{ field: '현황번역', text: '현황 번역' },
-    { field: null, text: 'AI 요약', isAI: true },
-    { field: '동작여부', text: '동작여부' },
-    { field: '조치계획', text: '조치계획' },
-    { field: '접수내용', text: '접수내용' },
-    { field: '조치결과', text: '조치결과' },
-    { field: null, text: 'AI 요약', isAI: true },
-    { field: 'AS접수일자', text: 'AS접수일자' },
-    { field: '기술적종료일', text: '기술적종료일' },
-    { field: '경과일', text: '경과일' },
-    { field: '정상지연', text: '정상지연' },
-    { field: '지연 사유', text: '지연 사유' }
-  ];
+  const headerDefinitions = {
+    'checkbox': { field: null, text: '', isCheckbox: true },
+    '공번': { field: '공번', text: '공번' },
+    '공사': { field: '공사', text: '공사' },
+    'imo': { field: 'imo', text: 'IMO NO.' },
+    'api_name': { field: 'api_name', text: 'NAME' },
+    'api_owner': { field: 'api_owner', text: 'OWNER' },
+    'api_manager': { field: 'api_manager', text: 'MANAGER' },
+    'api_apply': { field: null, text: '반영' },
+    'hull': { field: 'hull', text: 'HULL NO.' },
+    'shipName': { field: 'shipName', text: 'SHIPNAME' },
+    'repMail': { field: 'repMail', text: '호선 대표메일' },
+    'shipType': { field: 'shipType', text: 'SHIP TYPE' },
+    'scale': { field: 'scale', text: 'SCALE' },
+    '구분': { field: '구분', text: '구분' },
+    'shipowner': { field: 'shipowner', text: 'SHIPOWNER' },
+    'major': { field: 'major', text: '주요선사' },
+    'group': { field: 'group', text: '그룹' },
+    'shipyard': { field: 'shipyard', text: 'SHIPYARD' },
+    'contract': { field: 'contract', text: '계약' },
+    'asType': { field: 'asType', text: 'AS 구분' },
+    'delivery': { field: 'delivery', text: '인도일' },
+    'warranty': { field: 'warranty', text: '보증종료일' },
+    'prevManager': { field: 'prevManager', text: '전 담당' },
+    'manager': { field: 'manager', text: '현 담당' },
+    '현황': { field: '현황', text: '현황' },
+    '현황번역': { field: '현황번역', text: '현황 번역' },
+    'ai_summary': { field: null, text: 'AI 요약', isAI: true },
+    '동작여부': { field: '동작여부', text: '동작여부' },
+    '조치계획': { field: '조치계획', text: '조치계획' },
+    '접수내용': { field: '접수내용', text: '접수내용' },
+    '조치결과': { field: '조치결과', text: '조치결과' },
+    'history': { field: null, text: '히스토리', isHistory: true },
+    'AS접수일자': { field: 'AS접수일자', text: 'AS접수일자' },
+    '기술적종료일': { field: '기술적종료일', text: '기술적종료일' },
+    '경과일': { field: '경과일', text: '경과일' },
+    '정상지연': { field: '정상지연', text: '정상지연' },
+    '지연 사유': { field: '지연 사유', text: '지연 사유' },
+    '수정일': { field: '수정일', text: '수정일' }
+  };
   
   // 기존 헤더 제거
   thead.innerHTML = '';
   
   // 새 헤더 생성
-  headers.forEach(header => {
+  columnsToShow.forEach(columnKey => {
+    const headerDef = headerDefinitions[columnKey];
+    if (!headerDef) return;
+    
     const th = document.createElement('th');
     
-    if (header.isCheckbox) {
+    if (headerDef.isCheckbox) {
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.id = 'selectAll';
@@ -767,10 +978,10 @@ function renderTableHeaders() {
       th.appendChild(checkbox);
     } else {
       // 번역된 텍스트 가져오기
-      const translatedText = translations[currentLanguage][header.text] || header.text;
+      const translatedText = translations[currentLanguage][headerDef.text] || headerDef.text;
       
-      if (header.field) {
-        th.setAttribute('data-field', header.field);
+      if (headerDef.field) {
+        th.setAttribute('data-field', headerDef.field);
         th.style.cursor = 'pointer';
         
         // 텍스트 노드 추가
@@ -778,7 +989,7 @@ function renderTableHeaders() {
         th.appendChild(textNode);
         
         // 정렬 표시기 추가 (현재 정렬된 필드인 경우)
-        if (sortField === header.field) {
+        if (sortField === headerDef.field) {
           const sortIndicator = document.createElement('span');
           sortIndicator.className = 'sort-indicator';
           sortIndicator.innerHTML = sortAsc ? ' &#9650;' : ' &#9660;';
@@ -845,15 +1056,15 @@ function changeLanguage(lang) {
     
     // 필터 상태 복원
     restoreFilterState();
-    
-// 현재 필터된 상태로 다시 렌더링
-if (isFilterActive) {
-  // 필터가 활성화되어 있으면 필터 적용된 상태로 렌더링
-  renderTable(false);
-} else if (lastRenderedData.length > 0) {
-  // 필터는 없지만 데이터가 표시되어 있었다면 전체 표시
-  renderTable(true);
-}
+
+    // 현재 필터된 상태로 다시 렌더링
+    if (isFilterActive) {
+      // 필터가 활성화되어 있으면 필터 적용된 상태로 렌더링
+      renderTable(false);
+    } else if (lastRenderedData.length > 0) {
+      // 필터는 없지만 데이터가 표시되어 있었다면 전체 표시
+      renderTable(true);
+    }
   }
   
   // 사이드바 메뉴 업데이트
@@ -901,13 +1112,14 @@ function updateUILanguage() {
     connectionStatus.textContent = `${langData["연결 상태"] || "연결 상태"}: ${translatedStatus}`;
   }
   
-  // 2. 상태 카드 변경 - 역매핑 사용
+  // 2. 상태 카드 변경 - 개선된 상태 값 매핑
   const statusCards = {
-    '정상A': ['정상A', 'Normal A', '正常A', '正常A'],
-    '정상B': ['정상B', 'Normal B', '正常B', '正常B'],
-    '유상정상': ['유상정상', 'Paid Normal', '有偿正常', '有償正常'],
+    '정상': ['정상', 'Normal', '正常', '正常'],
     '부분동작': ['부분동작', 'Partial Operation', '部分运行', '部分動作'],
-    '동작불가': ['동작불가', 'Inoperable', '无法运行', '動作不可']
+    '동작불가': ['동작불가', 'Inoperable', '无法运行', '動作不可'],
+    '30일경과': ['30일경과', '30 Days+', '30天+', '30日+'],
+    '60일경과': ['60일경과', '60 Days+', '60天+', '60日+'],
+    '90일경과': ['90일경과', '90 Days+', '90天+', '90日+']
   };
   
   document.querySelectorAll('.status-card h3').forEach(el => {
@@ -931,7 +1143,9 @@ function updateUILanguage() {
     '그룹': ['그룹', 'Group', '组别', 'グループ'],
     'AS 구분': ['AS 구분', 'AS Type', 'AS类型', 'AS区分'],
     '현 담당': ['현 담당', 'Current Manager', '当前负责人', '現担当者'],
-    '동작여부': ['동작여부', 'Operation Status', '运行状态', '動作状態']
+    '동작여부': ['동작여부', 'Operation Status', '运行状态', '動作状態'],
+    'SHIP TYPE': ['SHIP TYPE', 'SHIP TYPE', '船舶类型', '船舶タイプ'],
+    'SHIPYARD': ['SHIPYARD', 'SHIPYARD', '造船厂', '造船所']
   };
   
   document.querySelectorAll('.filter-group label').forEach(el => {
@@ -953,6 +1167,8 @@ function updateUILanguage() {
   const buttonMappings = {
     // ID 기반 매핑
     'loadBtn': '전체조회',
+    'basicViewBtn': '기본',
+    'extendedViewBtn': '확장',
     'addRowBtn': '행 추가',
     'deleteRowBtn': '선택 행 삭제',
     'saveBtn': '저장',
@@ -964,6 +1180,7 @@ function updateUILanguage() {
     'translateBtn': '현황 번역',
     'ownerAISummaryBtn': '선사별 AI 요약',
     'apiRefreshAllBtn': 'API 전체 반영',
+    'managerStatusBtn': '담당자별 현황',
     'logoutBtn': '로그아웃',
     'btnManager': '담당자',
     'btnOwner': '선주사',
@@ -1011,8 +1228,8 @@ function updateUILanguage() {
   
   // 8. 필터 내 select option 텍스트 업데이트
   updateSelectOptions(langData);
-  
-  console.log('UI 언어 업데이트 완료');
+
+console.log('UI 언어 업데이트 완료');
 }
 
 // 역방향 키 찾기 헬퍼 함수
@@ -1039,15 +1256,13 @@ function updateSelectOptions(langData) {
     });
   }
   
-  // 동작여부 필터
+  // 동작여부 필터 - 새로운 3가지 상태로 변경
   const activeFilter = document.getElementById('filterActive');
   if (activeFilter) {
     Array.from(activeFilter.options).forEach(option => {
       const value = option.value;
       if (!value) option.textContent = langData["전체"] || "전체";
-      else if (value === "정상A") option.textContent = langData["정상A"] || "정상A";
-      else if (value === "정상B") option.textContent = langData["정상B"] || "정상B";
-      else if (value === "유상정상") option.textContent = langData["유상정상"] || "유상정상";
+      else if (value === "정상") option.textContent = langData["정상"] || "정상";
       else if (value === "부분동작") option.textContent = langData["부분동작"] || "부분동작";
       else if (value === "동작불가") option.textContent = langData["동작불가"] || "동작불가";
     });
@@ -1489,6 +1704,7 @@ auth.onAuthStateChanged(async (user) => {
     resetInterface();
   }
 });
+
 // Firebase 데이터 구조 확인 및 초기화 함수
 async function initializeScheduleData() {
   try {
@@ -1515,7 +1731,6 @@ async function initializeScheduleData() {
     console.error('초기화 오류:', error);
   }
 }
-
 
 // 인터페이스 초기화
 function resetInterface() {
@@ -1637,7 +1852,9 @@ function performLogin() {
       
       document.getElementById('loginError').textContent = errorMsg;
     });
-}// 로그아웃
+}
+
+// 로그아웃
 function logoutUser() {
   if(confirm("로그아웃 하시겠습니까?")) {
     auth.signOut()
@@ -1876,15 +2093,6 @@ function closeForgotPasswordModal() {
  * ===================================*/
 // 사용자 관리 모달 열기
 function openUserModal() {
-  if (!adminAuthorized) {
-    const pw = prompt("관리자 비밀번호:");
-    if (pw !== 'snsys1234') {
-      alert("관리자 비밀번호가 다릅니다.");
-      return;
-    }
-    adminAuthorized = true;
-  }
-  
   // 사용자 목록 불러오기
   db.ref(userPath).once('value').then(snap => {
     const val = snap.val() || {};
@@ -1998,15 +2206,6 @@ function addNewUser() {
  * ===================================*/
 // AI 설정 모달 열기
 function openAiConfigModal() {
-  if (!adminAuthorized) {
-    const pw = prompt("관리자 비밀번호:");
-    if (pw !== 'snsys1234') {
-      alert("관리자 비밀번호가 다릅니다.");
-      return;
-    }
-    adminAuthorized = true;
-  }
-  
   // 모달에 현재값 세팅
   document.getElementById('aiApiKey').value = g_aiConfig.apiKey || "";
   document.getElementById('aiModel').value = g_aiConfig.model || "";
@@ -2045,15 +2244,6 @@ async function loadAiConfig() {
  * ===================================*/
 // API 설정 모달 열기
 function openApiConfigModal() {
-  if (!adminAuthorized) {
-    const pw = prompt("관리자 비밀번호:");
-    if (pw !== 'snsys1234') {
-      alert("관리자 비밀번호가 다릅니다.");
-      return;
-    }
-    adminAuthorized = true;
-  }
-  
   // 모달에 현재값 세팅
   document.getElementById('vesselfinder_apikey').value = g_apiConfig.apiKey || "";
   document.getElementById('vesselfinder_baseurl').value = g_apiConfig.baseUrl || "https://api.vesselfinder.com/masterdata";
@@ -2212,7 +2402,18 @@ function closeApiProgressModal() {
  * ===================================*/
 function showAiProgressModal() {
   document.getElementById('aiProgressText').textContent = "요약 요청 중...";
-  document.getElementById('aiProgressModal').style.display = 'block';
+  const modal = document.getElementById('aiProgressModal');
+  modal.style.display = 'block';
+  modal.style.zIndex = '10015'; // 가장 높은 z-index로 설정
+  
+  // 모든 다른 모달보다 앞에 표시
+  modal.style.position = 'fixed';
+  modal.style.top = '0';
+  modal.style.left = '0';
+  modal.style.width = '100%';
+  modal.style.height = '100%';
+  modal.style.background = 'rgba(0, 0, 0, 0.8)';
+  modal.style.backdropFilter = 'blur(4px)';
 }
 
 function updateAiProgressText(chunk) {
@@ -2260,9 +2461,10 @@ function loadData() {
       if (r["현 담당"] && !r.manager) r.manager = r["현 담당"];
       if (r["SHIPOWNER"] && !r.shipowner) r.shipowner = r["SHIPOWNER"];
       if (r.group && typeof r.group !== 'string') r.group = String(r.group);
-if (!("AS접수일자" in r)) r["AS접수일자"] = "";
+      if (!("AS접수일자" in r)) r["AS접수일자"] = "";
       if (!("정상지연" in r)) r["정상지연"] = "";
       if (!("지연 사유" in r)) r["지연 사유"] = "";
+      if (!("수정일" in r)) r["수정일"] = "";
       
       // API 필드 초기화 (추가된 부분)
       if (!("api_name" in r)) r["api_name"] = "";
@@ -2272,6 +2474,11 @@ if (!("AS접수일자" in r)) r["AS접수일자"] = "";
       // 현황번역 필드 초기화 (추가된 부분)
       if (!("현황번역" in r)) r["현황번역"] = "";
       
+      // 동작여부 값 변환 (기존 5가지에서 3가지로)
+      if (r.동작여부 === "정상A" || r.동작여부 === "정상B" || r.동작여부 === "유상정상") {
+        r.동작여부 = "정상";
+      }
+      
       asData.push(r);
     });
     
@@ -2280,8 +2487,7 @@ if (!("AS접수일자" in r)) r["AS접수일자"] = "";
   });
 }
 
-
-// onCellChange 함수 수정 - 변경된 행 추적
+// onCellChange 함수 수정 - 변경된 행 추적 및 수정일 업데이트
 function onCellChange(e) {
   const uid = e.target.dataset.uid;
   const field = e.target.dataset.field;
@@ -2303,50 +2509,82 @@ function onCellChange(e) {
   // 데이터 로컬 업데이트
   row[field] = newVal;
   
+  // 수정일 업데이트 (현재 시간으로)
+  const now = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
+  row["수정일"] = now;
+  
   // 수정된 행 추적
   modifiedRows.add(uid);
   
-  // 변경 사항 일괄 업데이트를 위해 저장
-  if (!pendingRowUpdates.has(uid)) {
-    pendingRowUpdates.set(uid, {});
-  }
-  pendingRowUpdates.get(uid)[field] = newVal;
-  
-  // 일괄 처리 예약 (300ms 디바운스)
-  if (window.pendingUpdateTimer) {
-    clearTimeout(window.pendingUpdateTimer);
-  }
-  window.pendingUpdateTimer = setTimeout(processRowUpdates, 300);
-  
-  // 특정 필드 변경 시 테이블 즉시 다시 그리기
-  if (field === "정상지연" || field === "AS접수일자" || field === "기술적종료일") {
-    // 필터 상태 저장
-    saveFilterState();
-    
-    // 현재 필터 활성화 상태에 따라 렌더링
-    if (isFilterActive) {
-      renderTable(false);
-    } else if (lastRenderedData.length > 0) {
-      renderTable(true);
-    } else {
-      renderTable(false);
-    }
-    
-    restoreFilterState();
-  }
-  
-  // 현황 필드가 변경되었다면 현황번역 필드를 초기화
+  // 특정 필드 변경 시 처리
   if (field === "현황") {
-    row.현황번역 = "";
-    if (!pendingRowUpdates.has(uid)) {
-      pendingRowUpdates.set(uid, {});
-    }
-    pendingRowUpdates.get(uid)["현황번역"] = "";
+    row.현황번역 = ""; // 현황이 변경되었으므로 번역 초기화
     
     // 번역 필드 UI 업데이트
     const translationCell = e.target.closest('tr').querySelector('td[data-field="현황번역"] input');
     if (translationCell) {
       translationCell.value = "";
+    }
+  }
+  
+  // 경과일 관련 필드 변경 시 즉시 재계산
+  if (field === "정상지연" || field === "AS접수일자" || field === "기술적종료일") {
+    // 현재 행의 경과일 셀 업데이트
+    updateElapsedDaysForRow(e.target.closest('tr'), row);
+    
+    // 경과일 카드 업데이트
+    updateElapsedDayCounts();
+  }
+}
+
+// 경과일 실시간 업데이트 함수
+function updateElapsedDaysForRow(tr, rowData) {
+  const elapsedCell = tr.querySelector('td[data-field="경과일"]');
+  if (!elapsedCell) return;
+  
+  if (rowData["기술적종료일"]) {
+    elapsedCell.textContent = "";
+    elapsedCell.style.backgroundColor = '';
+    elapsedCell.style.color = '';
+  } else {
+    let asDate = rowData["AS접수일자"] || "";
+    if (!asDate) {
+      elapsedCell.textContent = "";
+      elapsedCell.style.backgroundColor = '';
+      elapsedCell.style.color = '';
+    } else {
+      const today = new Date();
+      const asD = new Date(asDate + "T00:00");
+      if (asD.toString() === 'Invalid Date') {
+        elapsedCell.textContent = "";
+        elapsedCell.style.backgroundColor = '';
+        elapsedCell.style.color = '';
+      } else {
+        const diff = Math.floor((today - asD) / (1000 * 3600 * 24));
+        if (diff < 0) {
+          elapsedCell.textContent = "0일";
+        } else {
+          elapsedCell.textContent = diff + "일";
+          if (!rowData["정상지연"]) {
+            if (diff >= 90) {
+              elapsedCell.style.backgroundColor = 'red';
+              elapsedCell.style.color = '#fff';
+            } else if (diff >= 60) {
+              elapsedCell.style.backgroundColor = 'orange';
+              elapsedCell.style.color = '';
+            } else if (diff >= 30) {
+              elapsedCell.style.backgroundColor = 'yellow';
+              elapsedCell.style.color = '';
+            } else {
+              elapsedCell.style.backgroundColor = '';
+              elapsedCell.style.color = '';
+            }
+          } else {
+            elapsedCell.style.backgroundColor = '';
+            elapsedCell.style.color = '';
+          }
+        }
+      }
     }
   }
 }
@@ -2405,21 +2643,22 @@ function saveAllData() {
     });
 }
 
-
 // 새 행 추가 시에도 수정된 행으로 추가
 function addNewRow() {
   const uid = db.ref().push().key;
+  const now = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
   const obj = {
     uid,
     공번: '', 공사: '', imo: '', hull: '', shipName: '', repMail: '',
     shipType: '', scale: '', 구분: '', shipowner: '', major: '', group: '',
     shipyard: '', contract: '', asType: '유상', delivery: '', warranty: '',
-    prevManager: '', manager: '', 현황: '', 현황번역: '', 동작여부: '정상A',
+    prevManager: '', manager: '', 현황: '', 현황번역: '', 동작여부: '정상',
     조치계획: '', 접수내용: '', 조치결과: '',
     "AS접수일자": '',
     "기술적종료일": '',
     "정상지연": '',
     "지연 사유": '',
+    "수정일": now,
     // API 필드 추가
     "api_name": '',
     "api_owner": '',
@@ -2431,35 +2670,6 @@ function addNewRow() {
   
   // 새로 추가된 행을 수정된 행으로 표시
   modifiedRows.add(uid);
-  
-  // 필터 상태 저장 및 복원
-  saveFilterState();
-  renderTable(true); // 바로 보여주도록
-  restoreFilterState();
-}
-
-// 새 행 추가
-function addNewRow() {
-  const uid = db.ref().push().key;
-  const obj = {
-    uid,
-    공번: '', 공사: '', imo: '', hull: '', shipName: '', repMail: '',
-    shipType: '', scale: '', 구분: '', shipowner: '', major: '', group: '',
-    shipyard: '', contract: '', asType: '유상', delivery: '', warranty: '',
-    prevManager: '', manager: '', 현황: '', 현황번역: '', 동작여부: '정상A',
-    조치계획: '', 접수내용: '', 조치결과: '',
-    "AS접수일자": '',
-    "기술적종료일": '',
-    "정상지연": '',
-    "지연 사유": '',
-    // API 필드 추가
-    "api_name": '',
-    "api_owner": '',
-    "api_manager": ''
-  };
-  
-  // 행을 배열 앞에 추가하여 최근 추가 항목이 맨 위에 표시되도록 함
-  asData.unshift(obj);
   
   // 필터 상태 저장 및 복원
   saveFilterState();
@@ -2497,7 +2707,7 @@ function toggleSelectAll(e) {
   cks.forEach(c => c.checked = e.target.checked);
 }
 
-// 테이블 클릭 이벤트 핸들러
+// 테이블 클릭 이벤트 핸들러 - 개선된 정렬 로직
 function handleTableClick(e) {
   // 헤더 클릭 시 정렬 (col-resizer 클릭은 제외)
   if ((e.target.tagName === 'TH' || e.target.closest('th')) && !e.target.classList.contains('col-resizer')) {
@@ -2530,13 +2740,43 @@ function handleTableClick(e) {
     sortIndicator.innerHTML = sortAsc ? ' &#9650;' : ' &#9660;'; // 위/아래 화살표
     th.appendChild(sortIndicator);
     
-    // 전체 데이터 정렬 - 메모리 내에서 직접 정렬
+    // 전체 데이터 정렬 - 개선된 정렬 로직
     asData.sort((a, b) => {
-      // 정렬 대상 필드의 값을 추출 (문자열로 변환하여 비교)
-      const aVal = String(a[field] || '').toLowerCase();
-      const bVal = String(b[field] || '').toLowerCase();
+      let aVal = a[field] || '';
+      let bVal = b[field] || '';
       
-      // 정렬 방향에 따라 비교 결과 반환
+      // 경과일 필드의 경우 특별 처리
+      if (field === '경과일') {
+        // 경과일 값에서 숫자만 추출
+        const aNum = typeof aVal === 'string' ? parseInt(aVal.replace(/[^0-9]/g, '')) || 0 : 0;
+        const bNum = typeof bVal === 'string' ? parseInt(bVal.replace(/[^0-9]/g, '')) || 0 : 0;
+        
+        return sortAsc ? aNum - bNum : bNum - aNum;
+      }
+      
+      // 날짜 필드의 경우
+      if (['delivery', 'warranty', 'AS접수일자', '기술적종료일', '수정일'].includes(field)) {
+        const aDate = aVal ? new Date(aVal) : new Date(0);
+        const bDate = bVal ? new Date(bVal) : new Date(0);
+        
+        if (isNaN(aDate.getTime())) aVal = new Date(0);
+        if (isNaN(bDate.getTime())) bVal = new Date(0);
+        
+        return sortAsc ? aDate - bDate : bDate - aDate;
+      }
+      
+      // 숫자 필드의 경우
+      if (['group'].includes(field)) {
+        const aNum = parseFloat(aVal) || 0;
+        const bNum = parseFloat(bVal) || 0;
+        
+        return sortAsc ? aNum - bNum : bNum - aNum;
+      }
+      
+      // 문자열 필드의 경우
+      aVal = String(aVal).toLowerCase();
+      bVal = String(bVal).toLowerCase();
+      
       if (aVal < bVal) return sortAsc ? -1 : 1;
       if (aVal > bVal) return sortAsc ? 1 : -1;
       return 0;
@@ -2565,11 +2805,8 @@ function renderTable(overrideAll = false) {
     // 데이터 유효성 검사
     if (!asData.length) {
       document.getElementById('asBody').innerHTML = '';
-      document.getElementById('count정상A').textContent = '0';
-      document.getElementById('count정상B').textContent = '0';
-      document.getElementById('count유상정상').textContent = '0';
-      document.getElementById('count부분동작').textContent = '0';
-      document.getElementById('count동작불가').textContent = '0';
+      updateStatusCounts({정상: 0, 부분동작: 0, 동작불가: 0});
+      updateElapsedDayCounts();
       isTableRendering = false;
       return;
     }
@@ -2588,17 +2825,16 @@ function renderTable(overrideAll = false) {
     const fAsType = currentFilterState.asType || '';
     const fMgr = currentFilterState.manager || '';
     const fActive = currentFilterState.active || '';
+    const fShipType = currentFilterState.shipType || '';
+    const fShipyard = currentFilterState.shipyard || '';
 
-    const allEmpty = !fIMO && !fHull && !fName && !fOwner && !fMajor && !fRepMail && !fGroup && !fAsType && !fMgr && !fActive;
+    const allEmpty = !fIMO && !fHull && !fName && !fOwner && !fMajor && !fRepMail && !fGroup && !fAsType && !fMgr && !fActive && !fShipType && !fShipyard;
     if (allEmpty && !overrideAll) {
       document.getElementById('asBody').innerHTML = '';
       updateSidebarList(); 
       // 상태 집계 초기화
-      document.getElementById('count정상A').textContent = '0';
-      document.getElementById('count정상B').textContent = '0';
-      document.getElementById('count유상정상').textContent = '0';
-      document.getElementById('count부분동작').textContent = '0';
-      document.getElementById('count동작불가').textContent = '0';
+      updateStatusCounts({정상: 0, 부분동작: 0, 동작불가: 0});
+      updateElapsedDayCounts();
       isTableRendering = false;
       lastRenderedData = [];
       return;
@@ -2618,6 +2854,8 @@ function renderTable(overrideAll = false) {
         const repMailVal = String(row.repMail || '').toLowerCase();
         const mgrVal = String(row.manager || '').toLowerCase();
         const actVal = String(row.동작여부 || '');
+        const shipTypeVal = String(row.shipType || '').toLowerCase();
+        const shipyardVal = String(row.shipyard || '').toLowerCase();
 
         if (fIMO && !imoVal.includes(fIMO.toLowerCase())) return false;
         if (fHull && !hullVal.includes(fHull.toLowerCase())) return false;
@@ -2629,6 +2867,8 @@ function renderTable(overrideAll = false) {
         if (fAsType && row.asType !== fAsType) return false;
         if (fMgr && !mgrVal.includes(fMgr.toLowerCase())) return false;
         if (fActive && actVal !== fActive) return false;
+        if (fShipType && !shipTypeVal.includes(fShipType.toLowerCase())) return false;
+        if (fShipyard && !shipyardVal.includes(fShipyard.toLowerCase())) return false;
       }
       return true;
     });
@@ -2636,8 +2876,36 @@ function renderTable(overrideAll = false) {
     // 정렬 적용 - 정렬 필드가 있을 때만
     if (sortField) {
       filteredData.sort((a, b) => {
-        const aa = String(a[sortField] || '');
-        const bb = String(b[sortField] || '');
+        let aVal = a[sortField] || '';
+        let bVal = b[sortField] || '';
+        
+        // 경과일 필드의 경우 특별 처리
+        if (sortField === '경과일') {
+          const aNum = typeof aVal === 'string' ? parseInt(aVal.replace(/[^0-9]/g, '')) || 0 : 0;
+          const bNum = typeof bVal === 'string' ? parseInt(bVal.replace(/[^0-9]/g, '')) || 0 : 0;
+          
+          return sortAsc ? aNum - bNum : bNum - aNum;
+        }
+        
+        // 날짜 필드의 경우
+        if (['delivery', 'warranty', 'AS접수일자', '기술적종료일', '수정일'].includes(sortField)) {
+          const aDate = aVal ? new Date(aVal) : new Date(0);
+          const bDate = bVal ? new Date(bVal) : new Date(0);
+          
+          return sortAsc ? aDate - bDate : bDate - aDate;
+        }
+        
+        // 숫자 필드의 경우
+        if (['group'].includes(sortField)) {
+          const aNum = parseFloat(aVal) || 0;
+          const bNum = parseFloat(bVal) || 0;
+          
+          return sortAsc ? aNum - bNum : bNum - aNum;
+        }
+        
+        // 문자열 필드의 경우
+        const aa = String(aVal).toLowerCase();
+        const bb = String(bVal).toLowerCase();
         if (aa < bb) return sortAsc ? -1 : 1;
         if (aa > bb) return sortAsc ? 1 : -1;
         return 0;
@@ -2648,7 +2916,7 @@ function renderTable(overrideAll = false) {
     lastRenderedData = filteredData;
     
     // 상태 집계
-    const counts = {정상A: 0, 정상B: 0, 유상정상: 0, 부분동작: 0, 동작불가: 0};
+    const counts = {정상: 0, 부분동작: 0, 동작불가: 0};
     
     filteredData.forEach(row => {
       if (counts.hasOwnProperty(row.동작여부)) counts[row.동작여부]++;
@@ -2664,6 +2932,11 @@ function renderTable(overrideAll = false) {
 
     // 기존 내용 초기화
     tbody.innerHTML = '';
+
+// 테이블 래퍼 스크롤 위치 저장
+const tableWrapper = document.getElementById('tableWrapper');
+const scrollTop = tableWrapper ? tableWrapper.scrollTop : 0;
+const scrollLeft = tableWrapper ? tableWrapper.scrollLeft : 0;
     
     // 배치 렌더링 함수
     const renderBatch = () => {
@@ -2685,6 +2958,12 @@ function renderTable(overrideAll = false) {
       } else {
         // 렌더링 완료 후 작업
         finishRendering(counts);
+
+// 스크롤 위치 복원
+if (tableWrapper) {
+  tableWrapper.scrollTop = scrollTop;
+  tableWrapper.scrollLeft = scrollLeft;
+}
       }
     };
     
@@ -2704,17 +2983,50 @@ function renderTable(overrideAll = false) {
 // 렌더링 완료 후 작업
 function finishRendering(counts) {
   // 동작여부 집계 표시
-  document.getElementById('count정상A').textContent = counts.정상A;
-  document.getElementById('count정상B').textContent = counts.정상B;
-  document.getElementById('count유상정상').textContent = counts.유상정상;
-  document.getElementById('count부분동작').textContent = counts.부분동작;
-  document.getElementById('count동작불가').textContent = counts.동작불가;
+  updateStatusCounts(counts);
+
+  // 경과일 카드 업데이트
+  updateElapsedDayCounts();
 
   // 사이드바 목록 갱신
   updateSidebarList();
   
   // 언어 적용 (헤더 제외)
   updateUILanguageExceptHeaders();
+}
+
+// 상태 카운트 업데이트 함수
+function updateStatusCounts(counts) {
+  document.getElementById('count정상').textContent = counts.정상 || 0;
+  document.getElementById('count부분동작').textContent = counts.부분동작 || 0;
+  document.getElementById('count동작불가').textContent = counts.동작불가 || 0;
+}
+
+// 경과일 카운트 업데이트 함수
+function updateElapsedDayCounts() {
+  const today = new Date();
+  let count30Days = 0, count60Days = 0, count90Days = 0;
+  
+  // 현재 표시된 데이터 기준으로 계산
+  const dataToCount = lastRenderedData.length > 0 ? lastRenderedData : asData;
+  
+  dataToCount.forEach(row => {
+    if (row["기술적종료일"]) return; // 기술적 종료된 것은 제외
+    if (!row["AS접수일자"]) return; // AS 접수일자가 없는 것은 제외
+    
+    const asDate = new Date(row["AS접수일자"] + "T00:00");
+    if (isNaN(asDate.getTime())) return;
+    
+    const diffDays = Math.floor((today - asDate) / (1000 * 3600 * 24));
+    
+    if (diffDays >= 90) count90Days++;
+    else if (diffDays >= 60) count60Days++;
+    else if (diffDays >= 30) count30Days++;
+  });
+  
+  document.getElementById('count30Days').textContent = count30Days;
+  document.getElementById('count60Days').textContent = count60Days;
+  document.getElementById('count90Days').textContent = count90Days;
 }
 
 // 헤더를 제외한 UI 업데이트 함수
@@ -2766,6 +3078,8 @@ function updateUILanguageExceptHeaders() {
   // 5. 하단 버튼들의 ID 기반 매핑 (추가)
   const bottomButtonMappings = {
     'loadBtn': '전체조회',
+    'basicViewBtn': '기본',
+    'extendedViewBtn': '확장',
     'addRowBtn': '행 추가', 
     'deleteRowBtn': '선택 행 삭제',
     'saveBtn': '저장',
@@ -2776,7 +3090,8 @@ function updateUILanguageExceptHeaders() {
     'clearHistoryBtn': '히스토리 전체 삭제',
     'translateBtn': '현황 번역',
     'ownerAISummaryBtn': '선사별 AI 요약',
-    'apiRefreshAllBtn': 'API 전체 반영'
+    'apiRefreshAllBtn': 'API 전체 반영',
+    'managerStatusBtn': '담당자별 현황'
   };
 
   // ID 기반으로 하단 버튼들 업데이트
@@ -2819,144 +3134,216 @@ function updateUILanguageExceptHeaders() {
   console.log('UI 언어 업데이트 완료');
 }
 
-// 테이블 행 생성 함수 수정 - 언어별 버튼 텍스트 처리
+// 테이블 행 생성 함수 수정 - 언어별 버튼 텍스트 처리 및 기본/확장 뷰 지원
 function createTableRow(row, counts) {
   const tr = document.createElement('tr');
+  
+  // 현재 뷰 모드에 따른 열 정의
+  const columnsToShow = isExtendedView ? allColumns : basicColumns;
 
-  // 체크박스
-  let td = document.createElement('td');
+  columnsToShow.forEach(columnKey => {
+    const td = createTableCell(row, columnKey);
+    if (td) tr.appendChild(td);
+  });
+
+  // 보증종료일 강조 - 무상/위탁인 경우 AS 구분 셀에 색칠
+  if (row.warranty) {
+    const wDate = new Date(row.warranty + "T00:00");
+    const today = new Date(new Date().toLocaleDateString());
+    if (wDate < today && (row.asType === '무상' || row.asType === '위탁')) {
+      // AS 구분 셀 찾기
+      const asCells = tr.querySelectorAll('td');
+      asCells.forEach(cell => {
+        const select = cell.querySelector('select[data-field="asType"]');
+        if (select) {
+          cell.style.backgroundColor = 'yellow';
+        }
+      });
+    }
+  }
+  
+  // 동작여부 셀 강조
+  const activeCell = tr.querySelector('td[data-field="동작여부"]');
+  if (activeCell) {
+    if (row.기술적종료일 && ["부분동작", "동작불가"].includes(row.동작여부)) {
+      activeCell.style.backgroundColor = 'yellow';
+    }
+    if (row.접수내용 && !row.기술적종료일 && row.동작여부 === "정상") {
+      activeCell.style.backgroundColor = 'lightgreen';
+    }
+  }
+
+  return tr;
+}
+
+// 테이블 셀 생성 함수
+function createTableCell(row, columnKey) {
+  switch (columnKey) {
+    case 'checkbox':
+      return createCheckboxCell(row);
+    case 'api_apply':
+      return createApiApplyCell(row);
+    case 'ai_summary':
+      return createAiSummaryCell(row);
+    case 'history':
+      return createHistoryCell(row);
+    case '경과일':
+      return createElapsedDaysCell(row);
+    case '정상지연':
+      return createNormalDelayCell(row);
+    case '수정일':
+      return createModifiedDateCell(row);
+    default:
+      return createDataCell(row, columnKey);
+  }
+}
+
+// 체크박스 셀 생성
+function createCheckboxCell(row) {
+  const td = document.createElement('td');
   const chk = document.createElement('input');
   chk.type = 'checkbox';
   chk.classList.add('rowSelectChk');
   chk.dataset.uid = row.uid;
   td.appendChild(chk);
-  tr.appendChild(td);
-
-  // 기본 셀 생성
-  tr.appendChild(makeCell(row.공번, '공번'));
-  tr.appendChild(makeCell(row.공사, '공사'));
-  tr.appendChild(makeCell(row.imo, 'imo'));
-  
-  // API 관련 셀 추가
-  tr.appendChild(makeCell(row.api_name, 'api_name'));
-  tr.appendChild(makeCell(row.api_owner, 'api_owner'));
-  tr.appendChild(makeCell(row.api_manager, 'api_manager'));
-  
-  // API 반영 버튼 - 언어별 텍스트
-  const apiTd = document.createElement('td');
-  const apiBtn = document.createElement('button');
-  apiBtn.textContent = translations[currentLanguage]["반영"] || "반영";
-  apiBtn.style.background = "#28a745";
-  apiBtn.style.color = "#fff";
-  apiBtn.style.cursor = "pointer";
-  apiBtn.style.border = "none";
-  apiBtn.style.borderRadius = "4px";
-  apiBtn.style.padding = "4px 8px";
-  apiBtn.addEventListener('click', () => fetchAndUpdateVesselData(row.uid));
-  apiTd.appendChild(apiBtn);
-  tr.appendChild(apiTd);
-
-  // 나머지 셀 생성
-  tr.appendChild(makeCell(row.hull, 'hull'));
-  tr.appendChild(makeCell(row.shipName, 'shipName'));
-  tr.appendChild(makeCell(row.repMail, 'repMail'));
-  tr.appendChild(makeCell(row.shipType, 'shipType'));
-  tr.appendChild(makeCell(row.scale, 'scale'));
-  tr.appendChild(makeCell(row.구분, '구분'));
-  tr.appendChild(makeCell(row.shipowner, 'shipowner'));
-  tr.appendChild(makeCell(row.major, 'major'));
-  tr.appendChild(makeCell(row.group, 'group'));
-  tr.appendChild(makeCell(row.shipyard, 'shipyard'));
-  tr.appendChild(makeCell(row.contract, 'contract'));
-  tr.appendChild(makeCell(row.asType, 'asType'));
-  tr.appendChild(makeCell(row.delivery, 'delivery'));
-  tr.appendChild(makeCell(row.warranty, 'warranty'));
-  tr.appendChild(makeCell(row.prevManager, 'prevManager'));
-  tr.appendChild(makeCell(row.manager, 'manager'));
-  tr.appendChild(makeCell(row.현황, '현황'));
-  
-  // 현황 번역 필드 추가
-  tr.appendChild(makeCell(row.현황번역 || '', '현황번역'));
-
-  // (1) AI 요약 버튼 (단일 행) - 언어별 텍스트
-  const aiTd = document.createElement('td');
-  const aiBtn = document.createElement('button');
-  aiBtn.textContent = translations[currentLanguage]["AI 요약"] || "AI 요약";
-  aiBtn.style.background = "#6c757d";
-  aiBtn.style.color = "#fff";
-  aiBtn.style.cursor = "pointer";
-  aiBtn.addEventListener('click', () => summarizeAndUpdateRow(row.uid));
-  aiTd.appendChild(aiBtn);
-  tr.appendChild(aiTd);
-
-  // 동작여부
-  const activeCell = makeCell(row.동작여부, '동작여부');
-  tr.appendChild(activeCell);
-
-  // 조치계획/접수내용/조치결과
-  tr.appendChild(makeCell(row.조치계획, '조치계획'));
-  tr.appendChild(makeCell(row.접수내용, '접수내용'));
-  tr.appendChild(makeCell(row.조치결과, '조치결과'));
-
-  // (2) 히스토리 AI 요약 - 언어별 텍스트
-  const historyTd = document.createElement('td');
-  const historyBtn = document.createElement('button');
-  historyBtn.textContent = translations[currentLanguage]["AI 요약"] || "AI 요약";
-  historyBtn.style.background = "#007bff";
-  historyBtn.style.color = "#fff";
-  historyBtn.style.cursor = "pointer";
-  historyBtn.addEventListener('click', () => summarizeHistoryForProject(row.공번));
-  historyTd.appendChild(historyBtn);
-  tr.appendChild(historyTd);
-
-  // AS접수일자/기술적종료일
-  tr.appendChild(makeCell(row["AS접수일자"], 'AS접수일자'));
-  tr.appendChild(makeCell(row["기술적종료일"], '기술적종료일'));
-
-  // 경과일, 정상지연, 지연 사유
-  tr.appendChild(makeElapsedCell(row));
-  tr.appendChild(makeNormalDelayCell(row));
-  tr.appendChild(makeDelayReasonCell(row));
-
-  // 보증종료일 강조
-  if (row.warranty) {
-    const wDate = new Date(row.warranty + "T00:00");
-    const today = new Date(new Date().toLocaleDateString());
-    if (wDate < today && row.asType !== '유상') {
-      tr.cells[17].style.backgroundColor = 'yellow';
-    }
-  }
-  if (row.기술적종료일 && ["정상B", "부분동작", "동작불가"].includes(row.동작여부)) {
-    activeCell.style.backgroundColor = 'yellow';
-  }
-  if (row.접수내용 && !row.기술적종료일 && ["정상A", "유상정상"].includes(row.동작여부)) {
-    activeCell.style.backgroundColor = 'lightgreen';
-  }
-
-  // 행 크기 조절 핸들
-  const rowRes = document.createElement('div');
-  rowRes.className = 'row-resizer';
-  rowRes.addEventListener('mousedown', (ev) => startRowResize(ev, tr));
-  tr.appendChild(rowRes);
-
-  return tr;
+  return td;
 }
 
-// 셀 생성 함수 - 최적화 및 모듈화
-function makeCell(val, fld) {
-  const c = document.createElement('td');
-  c.dataset.field = fld;
+// API 반영 버튼 셀 생성
+function createApiApplyCell(row) {
+  const td = document.createElement('td');
+  const btn = document.createElement('button');
+  btn.textContent = translations[currentLanguage]["반영"] || "반영";
+  btn.style.background = "#28a745";
+  btn.style.color = "#fff";
+  btn.style.cursor = "pointer";
+  btn.style.border = "none";
+  btn.style.borderRadius = "4px";
+  btn.style.padding = "4px 8px";
+  btn.addEventListener('click', () => fetchAndUpdateVesselData(row.uid));
+  td.appendChild(btn);
+  return td;
+}
+
+// AI 요약 버튼 셀 생성
+function createAiSummaryCell(row) {
+  const td = document.createElement('td');
+  const btn = document.createElement('button');
+  btn.textContent = translations[currentLanguage]["AI 요약"] || "AI 요약";
+  btn.style.background = "#6c757d";
+  btn.style.color = "#fff";
+  btn.style.cursor = "pointer";
+  btn.addEventListener('click', () => summarizeAndUpdateRow(row.uid));
+  td.appendChild(btn);
+  return td;
+}
+
+// 히스토리 버튼 셀 생성 (전체화면으로 표시)
+function createHistoryCell(row) {
+  const td = document.createElement('td');
+  const btn = document.createElement('button');
+  btn.textContent = "조회";
+  btn.style.background = "#007bff";
+  btn.style.color = "#fff";
+  btn.style.cursor = "pointer";
+  btn.addEventListener('click', () => showHistoryDataWithFullscreen(row.공번));
+  td.appendChild(btn);
+  return td;
+}
+
+// 히스토리 데이터를 전체화면으로 표시
+function showHistoryDataWithFullscreen(project) {
+  showHistoryData(project); // 기존 함수 호출
+  // 히스토리 모달을 전체화면으로 설정
+  setTimeout(() => {
+    const historyModal = document.getElementById('historyDataModal');
+    if (historyModal) {
+      historyModal.classList.add('fullscreen');
+    }
+  }, 100);
+}
+
+// 경과일 셀 생성
+function createElapsedDaysCell(row) {
+  const td = document.createElement('td');
+  td.dataset.field = "경과일";
   
-  if (['delivery', 'warranty', '기술적종료일', 'AS접수일자'].includes(fld)) {
+  if (row["기술적종료일"]) {
+    td.textContent = "";
+  } else {
+    let asDate = row["AS접수일자"] || "";
+    if (!asDate) {
+      td.textContent = "";
+    } else {
+      const today = new Date();
+      const asD = new Date(asDate + "T00:00");
+      if (asD.toString() === 'Invalid Date') {
+        td.textContent = "";
+      } else {
+        const diff = Math.floor((today - asD) / (1000 * 3600 * 24));
+        if (diff < 0) {
+          td.textContent = "0일";
+        } else {
+          td.textContent = diff + "일";
+          if (!row["정상지연"]) {
+            if (diff >= 90) {
+              td.style.backgroundColor = 'red';
+              td.style.color = '#fff';
+            } else if (diff >= 60) {
+              td.style.backgroundColor = 'orange';
+            } else if (diff >= 30) {
+              td.style.backgroundColor = 'yellow';
+            }
+          }
+        }
+      }
+    }
+  }
+  return td;
+}
+
+// 정상지연 체크박스 셀 생성
+function createNormalDelayCell(row) {
+  const td = document.createElement('td');
+  td.dataset.field = "정상지연";
+  const check = document.createElement('input');
+  check.type = 'checkbox';
+  check.dataset.uid = row.uid;
+  check.dataset.field = "정상지연";
+  check.checked = (row["정상지연"] === "Y");
+  check.addEventListener('change', onCellChange);
+  td.appendChild(check);
+  return td;
+}
+
+// 수정일 셀 생성
+function createModifiedDateCell(row) {
+  const td = document.createElement('td');
+  td.dataset.field = "수정일";
+  td.textContent = row["수정일"] || "";
+  td.style.backgroundColor = '#f8f9fa';
+  td.style.color = '#6c757d';
+  td.style.fontSize = '0.9em';
+  return td;
+}
+
+// 일반 데이터 셀 생성 함수
+function createDataCell(row, field) {
+  const td = document.createElement('td');
+  td.dataset.field = field;
+  
+  const value = row[field] || '';
+  
+  if (['delivery', 'warranty', '기술적종료일', 'AS접수일자'].includes(field)) {
     // 날짜 입력 필드
     const inp = document.createElement('input');
     inp.type = 'date';
-    inp.value = val || '';
-    inp.dataset.uid = '';  // rowId는 행 생성 시 할당
-    inp.dataset.field = fld;
+    inp.value = value;
+    inp.dataset.uid = row.uid;
+    inp.dataset.field = field;
     inp.addEventListener('change', onCellChange);
-    c.appendChild(inp);
-  } else if (fld === 'asType') {
+    td.appendChild(inp);
+  } else if (field === 'asType') {
     // AS 유형 선택
     const sel = document.createElement('select');
     ['유상', '무상', '위탁'].forEach(op => {
@@ -2965,35 +3352,35 @@ function makeCell(val, fld) {
       o.textContent = op;
       sel.appendChild(o);
     });
-    sel.value = val || '유상';
-    sel.dataset.uid = '';  // rowId는 행 생성 시 할당
-    sel.dataset.field = fld;
+    sel.value = value || '유상';
+    sel.dataset.uid = row.uid;
+    sel.dataset.field = field;
     sel.addEventListener('change', onCellChange);
-    c.appendChild(sel);
-  } else if (fld === '동작여부') {
-    // 동작여부 선택
+    td.appendChild(sel);
+  } else if (field === '동작여부') {
+    // 동작여부 선택 - 3가지로 변경
     const sel = document.createElement('select');
-    ['정상A', '정상B', '유상정상', '부분동작', '동작불가'].forEach(op => {
+    ['정상', '부분동작', '동작불가'].forEach(op => {
       const o = document.createElement('option');
       o.value = op;
       o.textContent = op;
       sel.appendChild(o);
     });
-    sel.value = val || '정상A';
-    sel.dataset.uid = '';  // rowId는 행 생성 시 할당
-    sel.dataset.field = fld;
+    sel.value = value || '정상';
+    sel.dataset.uid = row.uid;
+    sel.dataset.field = field;
     sel.addEventListener('change', onCellChange);
-    c.appendChild(sel);
-  } else if (fld === 'imo') {
+    td.appendChild(sel);
+  } else if (field === 'imo') {
     // IMO 번호 필드
     const inp = document.createElement('input');
     inp.type = 'text';
-    inp.value = val || '';
+    inp.value = value;
     inp.style.width = '75%';
-    inp.dataset.uid = '';  // rowId는 행 생성 시 할당
-    inp.dataset.field = fld;
+    inp.dataset.uid = row.uid;
+    inp.dataset.field = field;
     inp.addEventListener('change', onCellChange);
-    c.appendChild(inp);
+    td.appendChild(inp);
 
     // 링크 버튼
     const linkIcon = document.createElement('span');
@@ -3006,219 +3393,64 @@ function makeCell(val, fld) {
         window.open('https://www.vesselfinder.com/vessels/details/' + encodeURIComponent(imoVal), '_blank');
       }
     });
-    c.appendChild(linkIcon);
-  } else if (['조치계획', '접수내용', '조치결과'].includes(fld)) {
-    // 내용 모달 열기 필드
-    const inp = document.createElement('input');
-    inp.type = 'text';
-    inp.value = val || '';
-    inp.style.width = '95%';
-    inp.readOnly = true;
-    inp.dataset.uid = '';  // rowId는 행 생성 시 할당
-    inp.dataset.field = fld;
-    c.addEventListener('click', () => openContentModal(val || ''));
-    c.appendChild(inp);
-  } else if (['api_name', 'api_owner', 'api_manager'].includes(fld)) {
+    td.appendChild(linkIcon);
+} else if (['조치계획', '접수내용', '조치결과'].includes(field)) {
+  // 내용 모달 열기 필드 (창으로 열기)
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.value = value;
+  inp.style.width = '95%';
+  inp.readOnly = true;
+  inp.dataset.uid = row.uid;
+  inp.dataset.field = field;
+  td.addEventListener('click', () => openContentModalAsWindow(value));
+  td.appendChild(inp);
+}
+
+else if (['api_name', 'api_owner', 'api_manager'].includes(field)) {
     // API 데이터 필드 (읽기 전용)
     const inp = document.createElement('input');
     inp.type = 'text';
-    inp.value = val || '';
+    inp.value = value;
     inp.style.width = '95%';
     inp.readOnly = true;
-    inp.dataset.uid = '';  // rowId는 행 생성 시 할당
-    inp.dataset.field = fld;
-    c.appendChild(inp);
-  } else if (fld === '현황번역') {
+    inp.dataset.uid = row.uid;
+    inp.dataset.field = field;
+    td.appendChild(inp);
+  } else if (field === '현황번역') {
     // 현황 번역 필드 (읽기 전용)
     const inp = document.createElement('input');
     inp.type = 'text';
-    inp.value = val || '';
+    inp.value = value;
     inp.style.width = '95%';
     inp.readOnly = true;
-    inp.dataset.uid = '';  // rowId는 행 생성 시 할당
-    inp.dataset.field = fld;
-    c.appendChild(inp);
+    inp.dataset.uid = row.uid;
+    inp.dataset.field = field;
+    td.appendChild(inp);
+  } else if (field === '지연 사유') {
+    // 지연 사유 셀 생성
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.value = value;
+    inp.style.width = '95%';
+    inp.dataset.uid = row.uid;
+    inp.dataset.field = field;
+    inp.addEventListener('change', onCellChange);
+    td.appendChild(inp);
   } else {
     // 일반 텍스트 필드
     const inp = document.createElement('input');
     inp.type = 'text';
-    inp.value = val || '';
+    inp.value = value;
     inp.style.width = '95%';
-    inp.dataset.uid = '';  // rowId는 행 생성 시 할당
-    inp.dataset.field = fld;
+    inp.dataset.uid = row.uid;
+    inp.dataset.field = field;
     inp.addEventListener('change', onCellChange);
-    c.appendChild(inp);
+    td.appendChild(inp);
   }
   
-  // 모든 입력 요소에 대해 rowId 설정
-  if (c.firstChild) {
-    // 상위 TR 요소를 찾은 뒤 dataset.uid 할당
-    setTimeout(() => {
-      const tr = c.closest('tr');
-      if (tr) {
-        const rowId = tr.querySelector('.rowSelectChk').dataset.uid;
-        if (c.firstChild.dataset) {
-          c.firstChild.dataset.uid = rowId;
-        }
-      }
-    }, 0);
-  }
-  
-  return c;
+  return td;
 }
-
-// 경과일 셀 생성
-function makeElapsedCell(r) {
-  const c = document.createElement('td');
-  c.dataset.field = "경과일";
-  if (r["기술적종료일"]) {
-    c.textContent = "";
-  } else {
-    let asDate = r["AS접수일자"] || "";
-    if (!asDate) {
-      c.textContent = "";
-    } else {
-      const today = new Date();
-      const asD = new Date(asDate + "T00:00");
-      if (asD.toString() === 'Invalid Date') {
-        c.textContent = "";
-      } else {
-        const diff = Math.floor((today - asD) / (1000 * 3600 * 24));
-        if (diff < 0) {
-          c.textContent = "0일";
-        } else {
-          c.textContent = diff + "일";
-          if (!r["정상지연"]) {
-            if (diff >= 90) {
-              c.style.backgroundColor = 'red';
-              c.style.color = '#fff';
-            } else if (diff >= 60) {
-              c.style.backgroundColor = 'orange';
-            } else if (diff >= 30) {
-              c.style.backgroundColor = 'yellow';
-            }
-          }
-        }
-      }
-    }
-  }
-  return c;
-}
-
-// 정상지연 체크박스 셀 생성
-function makeNormalDelayCell(r) {
-  const c = document.createElement('td');
-  c.dataset.field = "정상지연";
-  const check = document.createElement('input');
-  check.type = 'checkbox';
-  check.dataset.uid = r.uid;
-  check.dataset.field = "정상지연";
-  check.checked = (r["정상지연"] === "Y");
-  check.addEventListener('change', onCellChange);
-  c.appendChild(check);
-  return c;
-}
-
-// 지연 사유 셀 생성
-function makeDelayReasonCell(r) {
-  const c = document.createElement('td');
-  c.dataset.field = "지연 사유";
-  const inp = document.createElement('input');
-  inp.type = 'text';
-  inp.value = r["지연 사유"] || '';
-  inp.style.width = '95%';
-  inp.dataset.uid = r.uid;
-  inp.dataset.field = "지연 사유";
-  inp.addEventListener('change', onCellChange);
-  c.appendChild(inp);
-  return c;
-}
-
-// 셀 변경 이벤트 핸들러 - 성능 최적화
-function onCellChange(e) {
-  const uid = e.target.dataset.uid;
-  const field = e.target.dataset.field;
-  let newVal = "";
-  
-  if (e.target.type === 'checkbox') {
-    newVal = e.target.checked ? "Y" : "";
-  } else {
-    newVal = e.target.value;
-  }
-  
-  // 해당 UID의 데이터 찾기
-  const row = asData.find(x => x.uid === uid);
-  if (!row) return;
-  
-  const oldVal = row[field] || '';
-  if (oldVal === newVal) return;
-  
-  // 데이터 로컬 업데이트
-  row[field] = newVal;
-  
-  // 변경 사항 일괄 업데이트를 위해 저장
-  if (!pendingRowUpdates.has(uid)) {
-    pendingRowUpdates.set(uid, {});
-  }
-  pendingRowUpdates.get(uid)[field] = newVal;
-  
-  // 일괄 처리 예약 (300ms 디바운스)
-  if (window.pendingUpdateTimer) {
-    clearTimeout(window.pendingUpdateTimer);
-  }
-  window.pendingUpdateTimer = setTimeout(processRowUpdates, 300);
-  
-// 특정 필드 변경 시 테이블 즉시 다시 그리기
-if (field === "정상지연" || field === "AS접수일자" || field === "기술적종료일") {
-  // 필터 상태 저장
-  saveFilterState();
-  
-  // 현재 필터 활성화 상태에 따라 렌더링
-  // isFilterActive가 true면 필터 적용, false면 마지막 렌더링 상태 유지
-  if (isFilterActive) {
-    renderTable(false); // 필터 적용된 상태로 렌더링
-  } else if (lastRenderedData.length > 0) {
-    renderTable(true); // 전체 데이터가 표시되어 있었다면 전체 표시
-  } else {
-    renderTable(false); // 기본 상태 유지
-  }
-  
-  restoreFilterState();
-}
-  
-  // 현황 필드가 변경되었다면 현황번역 필드를 초기화
-  if (field === "현황") {
-    row.현황번역 = "";
-    if (!pendingRowUpdates.has(uid)) {
-      pendingRowUpdates.set(uid, {});
-    }
-    pendingRowUpdates.get(uid)["현황번역"] = "";
-    
-    // 번역 필드 UI 업데이트
-    const translationCell = e.target.closest('tr').querySelector('td[data-field="현황번역"] input');
-    if (translationCell) {
-      translationCell.value = "";
-    }
-  }
-}
-
-// 실시간 저장을 비활성화한 processRowUpdates
-function processRowUpdates() {
-  // Firebase 업데이트를 하지 않고 pendingRowUpdates만 초기화
-  // 실제 저장은 saveAllData에서만 수행
-  if (pendingRowUpdates.size === 0) return;
-  
-  // modifiedRows에 추가
-  pendingRowUpdates.forEach((fields, uid) => {
-    modifiedRows.add(uid);
-  });
-  
-  // 대기 중인 업데이트 초기화
-  pendingRowUpdates.clear();
-}
-
-
-
 
 // 단일 선박 데이터 반영 함수 수정 - 성능 개선
 async function fetchAndUpdateVesselData(uid) {
@@ -3297,13 +3529,10 @@ async function fetchAndUpdateVesselData(uid) {
     row.api_name = vesselData.NAME || '';
     row.api_owner = vesselData.OWNER || '';
     row.api_manager = vesselData.MANAGER || '';
+    row["수정일"] = new Date().toISOString().split('T')[0]; // 수정일 업데이트
     
-    // Firebase 업데이트
-    await db.ref(`${asPath}/${uid}`).update({
-      api_name: row.api_name,
-      api_owner: row.api_owner,
-      api_manager: row.api_manager
-    });
+    // 수정된 행으로 추가
+    modifiedRows.add(uid);
     
     updateApiProgressText(`\n데이터 가져오기 성공!\n\n선박명: ${row.api_name}\n선주사: ${row.api_owner}\n관리사: ${row.api_manager}`);
     
@@ -3325,16 +3554,6 @@ async function fetchAndUpdateVesselData(uid) {
 
 // 전체 선박 데이터 반영
 async function refreshAllVessels() {
-  // 관리자 비밀번호 확인
-  if (!adminAuthorized) {
-    const pw = prompt("관리자 비밀번호를 입력하세요:");
-    if (pw !== 'snsys1234') {
-      alert("관리자 비밀번호가 다릅니다.");
-      return;
-    }
-    adminAuthorized = true;
-  }
-
   if (!g_apiConfig.apiKey) {
     alert("API 키가 설정되지 않았습니다. API 설정에서 키를 설정해주세요.");
     return;
@@ -3374,7 +3593,7 @@ async function refreshAllVessels() {
       updateApiProgressText(`\n필요 크레딧: ${neededCredits} (${vesselsWithImo.length}개 선박 × 3)`);
       
       if (credits < neededCredits) {
-        updateApiProgressText(`\n⚠️ 경고: 크레딧이 부족합니다. 일부 선박만 업데이트될 수 있습니다.`);
+        updateApiProgressText(`\⚠️ 경고: 크레딧이 부족합니다. 일부 선박만 업데이트될 수 있습니다.`);
         
         if (!confirm("크레딧이 부족합니다. 계속 진행하시겠습니까?")) {
           closeApiProgressModal();
@@ -3392,8 +3611,6 @@ async function refreshAllVessels() {
     }
   }
   
-  // 일괄 업데이트를 위한 객체
-  const updates = {};
   let successCount = 0;
   let errorCount = 0;
   
@@ -3452,19 +3669,19 @@ async function refreshAllVessels() {
       // MASTERDATA 사용
       const vesselData = data.MASTERDATA;
       
-      // 데이터 매핑 및 업데이트를 위해 준비
+      // 데이터 매핑 및 업데이트
       const api_name = vesselData.NAME || '';
       const api_owner = vesselData.OWNER || '';
       const api_manager = vesselData.MANAGER || '';
-      
-      updates[`${asPath}/${row.uid}/api_name`] = api_name;
-      updates[`${asPath}/${row.uid}/api_owner`] = api_owner;
-      updates[`${asPath}/${row.uid}/api_manager`] = api_manager;
       
       // 메모리 내 데이터도 업데이트
       row.api_name = api_name;
       row.api_owner = api_owner;
       row.api_manager = api_manager;
+      row["수정일"] = new Date().toISOString().split('T')[0]; // 수정일 업데이트
+      
+      // 수정된 행으로 추가
+      modifiedRows.add(row.uid);
       
       updateApiProgressText(`\n  성공: ${api_name} (${api_owner})`);
       successCount++;
@@ -3479,9 +3696,7 @@ async function refreshAllVessels() {
     }
   }
   
-  // 일괄 업데이트 수행
   try {
-    await db.ref().update(updates);
     updateApiProgressText(`\n\n업데이트 완료: 성공 ${successCount}건, 실패 ${errorCount}건`);
     
     // 히스토리 추가
@@ -3496,8 +3711,8 @@ async function refreshAllVessels() {
     setTimeout(() => closeApiProgressModal(), 5000);
     
   } catch (error) {
-    console.error("일괄 업데이트 오류:", error);
-    updateApiProgressText(`\n\n일괄 업데이트 중 오류 발생: ${error.message}`);
+    console.error("업데이트 처리 오류:", error);
+    updateApiProgressText(`\n\n업데이트 처리 중 오류 발생: ${error.message}`);
   }
 }
 
@@ -3516,44 +3731,12 @@ function updateRowInTable(rowData) {
   const apiNameCell = tr.querySelector(`td[data-field="api_name"] input`);
   const apiOwnerCell = tr.querySelector(`td[data-field="api_owner"] input`);
   const apiManagerCell = tr.querySelector(`td[data-field="api_manager"] input`);
+  const modifiedDateCell = tr.querySelector(`td[data-field="수정일"]`);
   
   if (apiNameCell) apiNameCell.value = rowData.api_name || '';
   if (apiOwnerCell) apiOwnerCell.value = rowData.api_owner || '';
   if (apiManagerCell) apiManagerCell.value = rowData.api_manager || '';
-}
-
-// 여러 행 업데이트하는 함수 (순서 유지)
-function updateMultipleRowsInTable() {
-  // 모든 행에 대해 업데이트 적용
-  asData.forEach(rowData => {
-    updateRowInTable(rowData);
-  });
-  
-  // 상태 카드 업데이트 (필요한 경우)
-  updateStatusCounts();
-}
-
-// 상태 카운트 업데이트 함수
-function updateStatusCounts() {
-  const counts = {
-    정상A: 0,
-    정상B: 0,
-    유상정상: 0,
-    부분동작: 0,
-    동작불가: 0
-  };
-  
-  // 현재 필터된 데이터 기준으로 카운트
-  lastRenderedData.forEach(row => {
-    if (counts.hasOwnProperty(row.동작여부)) {
-      counts[row.동작여부]++;
-    }
-  });
-  
-  // DOM 업데이트
-  Object.keys(counts).forEach(status => {
-    document.getElementById(`count${status}`).textContent = counts[status];
-  });
+  if (modifiedDateCell) modifiedDateCell.textContent = rowData["수정일"] || '';
 }
 
 /** ==================================
@@ -3576,6 +3759,12 @@ function switchSideMode(mode) {
   document.getElementById('filterAsType').value = "";
   document.getElementById('filterManager').value = "";
   document.getElementById('filterActive').value = "";
+  if (document.getElementById('filterShipType')) {
+    document.getElementById('filterShipType').value = "";
+  }
+  if (document.getElementById('filterShipyard')) {
+    document.getElementById('filterShipyard').value = "";
+  }
 
   // 현재 모드에 맞게 버튼 활성화 및 제목 변경
   if (mode === 'manager') {
@@ -3713,26 +3902,65 @@ function appendSidebarButton(container, label, total, progress, clickHandler) {
   container.appendChild(btn);
 }
 
-// 언어 초기화 함수
+// 언어 초기화 함수 수정
 function initializeLanguage() {
-  // 이전에 선택한 언어 복원 (로컬 스토리지에서)
-  const savedLanguage = localStorage.getItem('selectedLanguage');
-  if (savedLanguage && translations[savedLanguage]) {
-    currentLanguage = savedLanguage;
+  try {
+    // 이전에 선택한 언어 복원 (로컬 스토리지에서)
+    const savedLanguage = localStorage.getItem('selectedLanguage');
+    if (savedLanguage && translations[savedLanguage]) {
+      currentLanguage = savedLanguage;
+      
+      // 버튼 활성화 상태 업데이트 - null 체크 추가
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        if (btn && btn.getAttribute) {
+          if (btn.getAttribute('data-lang') === savedLanguage) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        }
+      });
+    }
     
-    // 버튼 활성화 상태 업데이트
-    document.querySelectorAll('.lang-btn').forEach(btn => {
-      if (btn.getAttribute('data-lang') === savedLanguage) {
-        btn.classList.add('active');
-} else {
-        btn.classList.remove('active');
-      }
-    });
+    // 초기 UI 언어 설정
+    updateUILanguage();
+  } catch (error) {
+    console.error('언어 초기화 중 오류:', error);
+    // 기본값으로 설정
+    currentLanguage = 'ko';
   }
-  
-  // 초기 UI 언어 설정
-  updateUILanguage();
 }
+
+// 추가 안전성을 위한 유틸리티 함수
+function safeGetElement(id) {
+  const element = document.getElementById(id);
+  if (!element) {
+    console.warn(`요소 '${id}'를 찾을 수 없습니다.`);
+  }
+  return element;
+}
+
+// 안전한 모달 표시 함수
+function safeShowModal(modalId) {
+  const modal = safeGetElement(modalId);
+  if (modal) {
+    modal.style.display = 'block';
+    return true;
+  }
+  return false;
+}
+
+// 안전한 모달 숨김 함수
+function safeHideModal(modalId) {
+  const modal = safeGetElement(modalId);
+  if (modal) {
+    modal.style.display = 'none';
+    return true;
+  }
+  return false;
+}
+
+
 
 // 모든 필터 초기화
 function clearFilters() {
@@ -3746,6 +3974,12 @@ function clearFilters() {
   document.getElementById('filterAsType').value = '';
   document.getElementById('filterManager').value = '';
   document.getElementById('filterActive').value = '';
+  if (document.getElementById('filterShipType')) {
+    document.getElementById('filterShipType').value = '';
+  }
+  if (document.getElementById('filterShipyard')) {
+    document.getElementById('filterShipyard').value = '';
+  }
   
   // 필터 상태 초기화
   currentFilterState = {};
@@ -3831,17 +4065,42 @@ function addTableScrollStyles() {
   `;
   document.head.appendChild(styleElem);
 }
-
-// 내용 보기 모달 열기
+// 내용 보기 모달 열기 - z-index 높게 설정
 function openContentModal(text) {
   const htmlText = convertMarkdownToHTML(text);
   document.getElementById('contentText').innerHTML = htmlText;
-  document.getElementById('contentModal').style.display = 'block';
+  const modal = document.getElementById('contentModal');
+  modal.style.display = 'block';
+  
+  // 히스토리 데이터 모달이 열려있는지 확인
+  const historyDataModal = document.getElementById('historyDataModal');
+  if (historyDataModal && historyDataModal.style.display === 'block') {
+    // 히스토리 데이터 모달보다 위에 표시
+    modal.style.zIndex = '10020';
+    const modalContent = modal.querySelector('.modal-content');
+    if (modalContent) {
+      modalContent.style.zIndex = '10021';
+    }
+  } else {
+    // 일반적인 경우
+    modal.style.zIndex = '10001';
+  }
 }
+
 
 // 내용 보기 모달 닫기
 function closeContentModal() {
-  document.getElementById('contentModal').style.display = 'none';
+  const modal = document.getElementById('contentModal');
+  modal.style.display = 'none';
+  
+  // z-index와 배경색 초기화
+  modal.style.zIndex = '';
+  modal.style.background = '';
+  
+  const modalContent = modal.querySelector('.modal-content');
+  if (modalContent) {
+    modalContent.style.zIndex = '';
+  }
 }
 
 // 내용 모달 전체화면 전환
@@ -3904,8 +4163,7 @@ function autoFitColumn(th) {
       } else if (widget.tagName === 'INPUT') {
         textContent = widget.value || '';
       } else if (widget.tagName === 'SPAN') {
-        textContent = widget.textContent || '';
-      }
+        textContent = widget.textContent || '';}
     } else {
       textContent = cell.innerText || cell.textContent || '';
     }
@@ -4020,7 +4278,7 @@ function downloadExcel() {
         '전 담당': d.prevManager, '현 담당': d.manager, 현황: d.현황, 현황번역: d.현황번역, 동작여부: d.동작여부,
         조치계획: d.조치계획, 접수내용: d.접수내용, 조치결과: d.조치결과,
         AS접수일자: d["AS접수일자"], 기술적종료일: d["기술적종료일"],
-        정상지연: d["정상지연"], '지연 사유': d["지연 사유"]
+        정상지연: d["정상지연"], '지연 사유': d["지연 사유"], '수정일': d["수정일"]
       }));
       
       const ws = XLSX.utils.json_to_sheet(arr);
@@ -4081,6 +4339,7 @@ function readExcelFile(file, mode) {
         // 데이터 가공
         let newData = json.map(r => {
           const uid = db.ref().push().key;
+          const now = new Date().toISOString().split('T')[0];
           return {
             uid,
             공번: parseCell(r['공번']),
@@ -4107,15 +4366,16 @@ function readExcelFile(file, mode) {
             prevManager: parseCell(r['전 담당']),
             manager: parseCell(r['현 담당']),
             현황: parseCell(r['현황']),
-            현황번역: parseCell(r['현황번역']), // 현황번역 필드 추가
-            동작여부: parseCell(r['동작여부']) || '정상A',
+            현황번역: parseCell(r['현황번역']),
+            동작여부: normalizeOperationStatus(parseCell(r['동작여부']) || '정상'),
             조치계획: parseCell(r['조치계획']),
             접수내용: parseCell(r['접수내용']),
             조치결과: parseCell(r['조치결과']),
             "AS접수일자": parseDate(r['AS접수일자'] || ''),
             "기술적종료일": parseDate(r['기술적종료일'] || ''),
             "정상지연": (r['정상지연'] === 'Y') ? 'Y' : '',
-            "지연 사유": parseCell(r['지연 사유'])
+            "지연 사유": parseCell(r['지연 사유']),
+            "수정일": parseDate(r['수정일'] || '') || now
           };
         });
         
@@ -4170,6 +4430,22 @@ function readExcelFile(file, mode) {
   };
   
   reader.readAsArrayBuffer(file);
+}
+
+// 동작여부 값 정규화 함수
+function normalizeOperationStatus(status) {
+  switch (status) {
+    case '정상A':
+    case '정상B':
+    case '유상정상':
+      return '정상';
+    case '부분동작':
+      return '부분동작';
+    case '동작불가':
+      return '동작불가';
+    default:
+      return '정상';
+  }
 }
 
 // 셀 값 파싱 헬퍼 함수
@@ -4259,6 +4535,7 @@ function readAsStatusFile(file) {
         const map = {};
         const projectCount = {};
         const batchAiRecords = {};
+        const now = new Date().toISOString().split('T')[0];
         
         // 첫 번째 패스: 프로젝트별 데이터 수집
         json.forEach(row => {
@@ -4268,11 +4545,33 @@ function readAsStatusFile(file) {
           const project = (row['수익프로젝트'] || '').trim();
           if (!project) return;
           
-          // AI 히스토리 레코드 준비
+          // AS접수일자 파싱
+          const asDateRaw = row['AS접수일자'] || '';
+          let asDateFormatted = '';
+          if (asDateRaw) {
+            const asDateObj = new Date(asDateRaw.replace(/[./]/g, '-') + "T00:00");
+            if (!isNaN(asDateObj.getTime())) {
+              asDateFormatted = dateToYMD(asDateObj.getTime());
+            }
+          }
+          
+          // 기술적종료일자 파싱
+          const tEndRaw = row['기술적종료일자'] || '';
+          let tEndFormatted = '';
+          if (tEndRaw) {
+            tEndFormatted = parseDateString(tEndRaw);
+          }
+          
+          // AI 히스토리 레코드 준비 - 모든 필드 포함
           const aiRecordKey = db.ref(aiHistoryPath).push().key;
           batchAiRecords[`${aiHistoryPath}/${aiRecordKey}`] = {
             project: project,
-            조치결과: (row['조치결과'] || '').trim()
+            AS접수일자: asDateFormatted,
+            조치계획: (row['조치계획'] || '').trim(),
+            접수내용: (row['접수내용'] || '').trim(),
+            조치결과: (row['조치결과'] || '').trim(),
+            기술적종료일: tEndFormatted,
+            timestamp: new Date().toISOString()
           };
           
           // 프로젝트 카운트 증가
@@ -4283,16 +4582,14 @@ function readAsStatusFile(file) {
           }
           
           // 가장 최근 데이터 찾기 위해 접수일 확인
-          const asDateRaw = row['AS접수일자'] || '';
-          const asDateObj = new Date(asDateRaw.replace(/[./]/g, '-') + "T00:00");
-          const asDateMS = asDateObj.getTime();
+          const asDateMS = asDateRaw ? new Date(asDateRaw.replace(/[./]/g, '-') + "T00:00").getTime() : 0;
           
           if (isNaN(asDateMS)) return; // 날짜 변환 실패 시 스킵
           
           const plan = row['조치계획'] || '';
           const rec = row['접수내용'] || '';
           const res = row['조치결과'] || '';
-          const tEnd = row['기술적종료일자'] || '';
+          const tEnd = tEndRaw || '';
           
           if (!map[project]) {
             map[project] = {asDate: asDateMS, plan, rec, res, tEnd};
@@ -4328,6 +4625,7 @@ function readAsStatusFile(file) {
             row.조치결과 = item.res;
             row["기술적종료일"] = parseDateString(item.tEnd);
             row["AS접수일자"] = dateToYMD(item.asDate);
+            row["수정일"] = now;
             
             // 현황번역 필드 초기화 (현황이 변경되었을 수 있으므로)
             row["현황번역"] = "";
@@ -4338,6 +4636,7 @@ function readAsStatusFile(file) {
             updates[`${asPath}/${row.uid}/조치결과`] = row.조치결과;
             updates[`${asPath}/${row.uid}/기술적종료일`] = row["기술적종료일"];
             updates[`${asPath}/${row.uid}/AS접수일자`] = row["AS접수일자"];
+            updates[`${asPath}/${row.uid}/수정일`] = row["수정일"];
             updates[`${asPath}/${row.uid}/현황번역`] = "";
             
             updateCount++;
@@ -4428,16 +4727,16 @@ async function summarizeAndUpdateRow(uid) {
       return;
     }
     
-    // 로컬 데이터 및 Firebase 업데이트
+    // 로컬 데이터 업데이트 및 수정일 갱신
     row.현황 = summary;
     row.현황번역 = ""; // 현황이 변경되었으므로 번역 초기화
-    await db.ref(`${asPath}/${uid}`).update({
-      현황: summary,
-      현황번역: ""
-    });
+    row["수정일"] = new Date().toISOString().split('T')[0];
+    
+    // 수정된 행으로 추가
+    modifiedRows.add(uid);
     
     // 단일 행만 업데이트 (전체 렌더링 방지)
-    updateSingleRowInTable(uid, { 현황: summary, 현황번역: "" });
+    updateSingleRowInTable(uid, { 현황: summary, 현황번역: "", "수정일": row["수정일"] });
     
     addHistory(`AI 요약 완료 - [${uid}] 현황 업데이트`);
     alert("AI 요약 결과가 '현황' 필드에 반영되었습니다.");
@@ -4459,14 +4758,20 @@ function updateSingleRowInTable(uid, updates) {
   
   // 필요한 필드만 업데이트
   Object.entries(updates).forEach(([field, value]) => {
-    const cell = tr.querySelector(`td[data-field="${field}"] input`);
-    if (cell) {
-      cell.value = value || '';
+    if (field === "수정일") {
+      const cell = tr.querySelector(`td[data-field="${field}"]`);
+      if (cell) {
+        cell.textContent = value || '';
+      }
+    } else {
+      const cell = tr.querySelector(`td[data-field="${field}"] input`);
+      if (cell) {
+        cell.value = value || '';
+      }
     }
   });
 }
 
-// (2) 히스토리 AI 요약
 async function summarizeHistoryForProject(project) {
   if (!project) {
     alert("공번(수익프로젝트) 정보가 없습니다.");
@@ -4474,22 +4779,88 @@ async function summarizeHistoryForProject(project) {
   }
   
   try {
-    const snapshot = await db.ref(aiHistoryPath).orderByChild("project").equalTo(project).once('value');
-    const data = snapshot.val();
-    
-    if (!data) {
-      alert("해당 공번에 해당하는 히스토리 데이터가 없습니다.");
+    // 현재 프로젝트의 모든 AS 기록 가져오기
+    const currentRow = asData.find(x => x.공번 === project);
+    if (!currentRow) {
+      alert("해당 공번의 데이터를 찾을 수 없습니다.");
       return;
     }
     
-    const records = Object.values(data);
-    let combinedText = `프로젝트(공번): ${project}\n\n`;
+    // AS 히스토리 데이터 가져오기 (있으면)
+    const snapshot = await db.ref(aiHistoryPath).orderByChild("project").equalTo(project).once('value');
+    const historyData = snapshot.val() || {};
     
-    records.forEach(rec => {
-      combinedText += `[조치결과]\n${rec.조치결과 || '내용 없음'}\n\n`;
+    // 중복 제거를 위한 Map 사용
+    const uniqueRecords = new Map();
+    
+    // 현재 데이터 추가 - AS접수일자가 있는 경우만
+    if (currentRow["AS접수일자"] && (currentRow.접수내용 || currentRow.조치결과)) {
+      const key = `${currentRow["AS접수일자"]}_${currentRow.접수내용 || ''}_${currentRow.조치결과 || ''}`;
+      uniqueRecords.set(key, {
+        asDate: currentRow["AS접수일자"],
+        plan: currentRow.조치계획 || '',
+        rec: currentRow.접수내용 || '',
+        res: currentRow.조치결과 || '',
+        tEnd: currentRow["기술적종료일"] || ''
+      });
+    }
+    
+    // 히스토리 데이터 추가 (중복 제거 및 AS접수일자 필터링)
+    Object.values(historyData).forEach(rec => {
+      // AS접수일자가 없으면 스킵
+      if (!rec.AS접수일자) return;
+      
+      const key = `${rec.AS접수일자}_${rec.접수내용 || ''}_${rec.조치결과 || ''}`;
+      // 이미 같은 키가 존재하면 스킵 (중복 제거)
+      if (!uniqueRecords.has(key)) {
+        uniqueRecords.set(key, {
+          asDate: rec.AS접수일자,
+          plan: rec.조치계획 || '',
+          rec: rec.접수내용 || '',
+          res: rec.조치결과 || '',
+          tEnd: rec.기술적종료일 || ''
+        });
+      }
+    });
+    
+    // Map을 배열로 변환
+    let allRecords = Array.from(uniqueRecords.values());
+    
+    if (allRecords.length === 0) {
+      alert("해당 공번에 AS 기록이 없습니다.");
+      return;
+    }
+    
+    // 날짜순 정렬 (최신순)
+    allRecords.sort((a, b) => {
+      const dateA = new Date(a.asDate || '1900-01-01');
+      const dateB = new Date(b.asDate || '1900-01-01');
+      return dateB - dateA;
+    });
+    
+    // 디버깅을 위한 로그 추가
+    console.log('히스토리 AI 요약 - 수집된 기록 (중복 제거):', allRecords);
+    console.log('총 레코드 수:', allRecords.length);
+    
+    // 선사별 요약과 동일한 형식으로 텍스트 구성
+    let combinedText = `공번: ${project}\n`;
+    combinedText += `선박명: ${currentRow.shipName || 'N/A'}\n`;
+    combinedText += `선주사: ${currentRow.shipowner || 'N/A'}\n`;
+    combinedText += `총 ${allRecords.length}건의 AS 기록\n\n`;
+    
+    allRecords.forEach((rec, idx) => {
+      combinedText += `AS접수일자: ${rec.asDate || 'N/A'}\n`;
+      combinedText += `[조치계획]\n${rec.plan || '내용 없음'}\n\n`;
+      combinedText += `[접수내용]\n${rec.rec || '내용 없음'}\n\n`;
+      combinedText += `[조치결과]\n${rec.res || '내용 없음'}\n\n`;
+      if (rec.tEnd) {
+        combinedText += `기술적종료일: ${rec.tEnd}\n`;
+      }
+      combinedText += `----\n\n`;
     });
 
-    const basePrompt = g_aiConfig.promptHistory || "히스토리 조치결과를 간략 요약해주세요.";
+    const basePrompt = g_aiConfig.promptHistory || 
+      "해당 공번의 AS접수일자/조치계획/접수내용/조치결과가 시간순으로 주어집니다. 이를 종합하여 요약해 주세요.";
     const promptText = basePrompt + "\n\n" + combinedText;
 
     showAiProgressModal();
@@ -4503,14 +4874,83 @@ async function summarizeHistoryForProject(project) {
       return;
     }
     
-    // 히스토리 요약 결과를 contentModal에서 전체보기
-    openContentModal(summary);
+    // 히스토리 요약 모달 열기 (원본 데이터 포함) - 전체화면으로 열기
+    openHistorySummaryModal(summary, project, currentRow, true);
+    
   } catch (err) {
     console.error("히스토리 AI 요약 오류:", err);
     alert("히스토리 AI 요약 처리 중 오류가 발생했습니다.");
   } finally {
     closeAiProgressModal();
   }
+}
+
+function openHistorySummaryModal(summary, project, rowData, fullscreen = false) {
+  // 기존 모달 제거
+  const existingModal = document.getElementById('historySummaryModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+  
+  // 모달 생성
+  const modal = document.createElement('div');
+  modal.id = 'historySummaryModal';
+  modal.style.cssText = 'display: block; position: fixed; z-index: 10005; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.3);';
+  
+  // 전체화면 적용
+  if (fullscreen) {
+    modal.classList.add('fullscreen');
+    modal.style.background = 'rgba(0, 0, 0, 0.7)';
+  }
+  
+  const modalContent = document.createElement('div');
+  modalContent.className = 'modal-content';
+  if (fullscreen) {
+    modalContent.style.cssText = 'background: #fff; width: 100% !important; height: 100% !important; max-width: 100%; max-height: 100%; margin: 0 !important; border-radius: 0; padding: 20px; position: relative; overflow-y: auto;';
+  } else {
+    modalContent.style.cssText = 'background: #fff; margin: 5% auto; width: 1000px; border-radius: 6px; padding: 20px; position: relative; max-height: 85%; overflow-y: auto;';
+  }
+  
+  // 닫기 버튼
+  const closeBtn = document.createElement('span');
+  closeBtn.className = 'close';
+  closeBtn.innerHTML = '&times;';
+  closeBtn.onclick = () => modal.remove();
+  modalContent.appendChild(closeBtn);
+  
+  // 전체화면 버튼
+  const fullscreenBtn = document.createElement('button');
+  fullscreenBtn.style.cssText = 'position:absolute; right:45px; top:10px; font-size:0.85em; background:#666; color:#fff; border:none; border-radius:4px; padding:4px 8px; cursor:pointer;';
+  fullscreenBtn.textContent = '전체화면';
+  fullscreenBtn.onclick = () => toggleHistorySummaryFullscreen();
+  modalContent.appendChild(fullscreenBtn);
+  
+  // 제목
+  const title = document.createElement('h2');
+  title.textContent = `히스토리 AI 요약 - ${project}`;
+  modalContent.appendChild(title);
+  
+  // 부제목
+  const subtitle = document.createElement('p');
+  subtitle.style.cssText = 'font-size:0.85em; color:#666; margin-bottom:20px;';
+  subtitle.textContent = `${rowData.shipName || 'N/A'} (${rowData.shipowner || 'N/A'})`;
+  modalContent.appendChild(subtitle);
+  
+  // AI 요약 내용
+  const summaryDiv = document.createElement('div');
+  summaryDiv.id = 'historySummaryText';
+  summaryDiv.innerHTML = convertMarkdownToHTML(summary);
+  summaryDiv.style.cssText = 'margin: 20px 0; line-height: 1.8; font-size: 0.95em; z-index: 10006; position: relative;';
+  modalContent.appendChild(summaryDiv);
+  
+  modal.appendChild(modalContent);
+  document.body.appendChild(modal);
+}
+
+// 전체화면 토글 함수 추가
+function toggleHistorySummaryFullscreen() {
+  const modal = document.getElementById('historySummaryModal');
+  modal.classList.toggle('fullscreen');
 }
 
 // (3) 선사별 AI 요약
@@ -4591,6 +5031,7 @@ async function openOwnerAIModal() {
     
     document.getElementById('ownerAISummaryText').innerHTML = convertMarkdownToHTML(finalSummary);
     document.getElementById('ownerAIModal').style.display = 'block';
+    document.getElementById('ownerAIModal').style.zIndex = '10004'; // 높은 z-index 설정
   } catch (err) {
     console.error("선사별 AI 요약 오류:", err);
     alert("선사별 AI 요약 처리 중 오류가 발생했습니다.");
@@ -4599,7 +5040,7 @@ async function openOwnerAIModal() {
   }
 }
 
-// AI 호출 통합 함수 (OpenAI or Gemini)
+// AI 호출 통합 함수 (OpenAI or Gemini) - 모델명 표시 개선
 async function callAiForSummary(userPrompt) {
   const apiKey = g_aiConfig.apiKey;
   const modelName = g_aiConfig.model || "";
@@ -4625,16 +5066,18 @@ async function callAiForSummary(userPrompt) {
   }
 }
 
-// OpenAI API 호출
+// OpenAI API 호출 - 모델명 표시 개선
 async function callOpenAiForSummary(contentText, apiKey, modelName) {
-  // 모델명 매핑 (기본값 설정)
-  let openAiModel = modelName;
-  if (!openAiModel || openAiModel === "gpt-4o-mini") {
-    openAiModel = "gpt-3.5-turbo";
+  // 모델명 그대로 표시
+  let displayModel = modelName;
+  
+  // gpt-4o-mini인 경우 그대로 표시
+  if (modelName === "gpt-4o-mini") {
+    displayModel = "gpt-4o-mini";
   }
 
   try {
-    updateAiProgressText(`OpenAI 모델(${openAiModel}) 호출 중...\n`);
+    updateAiProgressText(`OpenAI 모델(${displayModel}) 호출 중...\n`);
     
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: 'POST',
@@ -4643,7 +5086,7 @@ async function callOpenAiForSummary(contentText, apiKey, modelName) {
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: openAiModel,
+        model: modelName, // 실제 API 호출 시에는 원본 모델명 사용
         messages: [
           {role: "user", content: contentText}
         ],
@@ -4712,29 +5155,18 @@ async function callGeminiForSummary(contentText, apiKey, modelName) {
 }
 
 /** ==================================
- *  유틸리티 함수
+ *  담당자별 현황 관리
  * ===================================*/
-// 두 객체 비교 함수
-function isEqual(obj1, obj2) {
-  if (!obj1 || !obj2) return false;
-  
-  const keys1 = Object.keys(obj1);
-  const keys2 = Object.keys(obj2);
-  
-  if (keys1.length !== keys2.length) return false;
-  
-  for (const key of keys1) {
-    if (obj1[key] !== obj2[key]) return false;
-  }
-  
-  return true;
-}
-
-
-// 담당자별 현황 모달 열기
+// 담당자별 현황 모달 열기 - 전체화면으로 열기
 function openManagerStatusModal() {
   loadManagerScheduleStatus();
-  document.getElementById('managerStatusModal').style.display = 'block';
+  const modal = document.getElementById('managerStatusModal');
+  modal.style.display = 'block';
+  // 기본적으로 전체화면으로 표시
+  modal.classList.add('fullscreen');
+  modal.style.background = 'rgba(0, 0, 0, 0.7)';
+  const modalContent = modal.querySelector('.modal-content');
+  modalContent.style.cssText = 'background: #fff; width: 100% !important; height: 100% !important; max-width: 100%; max-height: 100%; margin: 0 !important; border-radius: 0; padding: 20px; position: relative; overflow-y: auto;';
 }
 
 // 담당자별 현황 모달 닫기
@@ -4838,6 +5270,7 @@ async function loadManagerScheduleStatus() {
     alert('담당자별 현황을 불러오는 중 오류가 발생했습니다.');
   }
 }
+
 // displayManagerStatus 함수 수정
 function displayManagerStatus() {
   const container = document.getElementById('managerStatusList');
@@ -4902,20 +5335,20 @@ function displayManagerStatus() {
       textColor = '#ffc107'; // 노란색 텍스트
     }
     
-// 날짜 포맷 함수 - 년도 포함
-const formatDateWithYear = (dateStr) => {
-  if (!dateStr) return '-';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).replace(/\. /g, '-').replace('.', '');
-};
+    // 날짜 포맷 함수 - 년도 포함
+    const formatDateWithYear = (dateStr) => {
+      if (!dateStr) return '-';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).replace(/\. /g, '-').replace('.', '');
+    };
 
-// 날짜 표시 - 년도 포함
-const lastAccessDate = formatDateWithYear(manager.lastAccess);
-const lastCheckDate = formatDateWithYear(manager.lastCheck);
+    // 날짜 표시 - 년도 포함
+    const lastAccessDate = formatDateWithYear(manager.lastAccess);
+    const lastCheckDate = formatDateWithYear(manager.lastCheck);
     
     // 각 셀을 개별적으로 생성 (innerHTML 대신)
     const td1 = document.createElement('td');
@@ -4937,12 +5370,12 @@ const lastCheckDate = formatDateWithYear(manager.lastCheck);
     td4.textContent = lastCheckDate;
     tr.appendChild(td4);
     
-const td5 = document.createElement('td');
-td5.style.textAlign = 'center';
-td5.style.fontWeight = 'bold';
-td5.style.color = textColor;
-td5.textContent = daysSince + '일';
-tr.appendChild(td5);
+    const td5 = document.createElement('td');
+    td5.style.textAlign = 'center';
+    td5.style.fontWeight = 'bold';
+    td5.style.color = textColor;
+    td5.textContent = daysSince + '일';
+    tr.appendChild(td5);
     
     // 행 클릭 시 해당 담당자의 일정 확인 (관리자만)
     tr.style.cursor = 'pointer';
@@ -4956,7 +5389,6 @@ tr.appendChild(td5);
   });
   
   table.appendChild(tbody);
-  
   
   container.appendChild(table);
   
@@ -5023,42 +5455,6 @@ async function confirmScheduleForManager(managerName) {
     console.error('일정 확인 처리 오류:', error);
     alert('일정 확인 처리 중 오류가 발생했습니다.');
   }
-}// 일정 확인 완료 처리
-async function confirmScheduleCheck(managerName) {
-  try {
-    // 해당 담당자의 userId 찾기
-    const usersSnapshot = await db.ref('users').once('value');
-    const users = usersSnapshot.val() || {};
-    
-    let userId = null;
-    for (const uid in users) {
-      if (users[uid].id === managerName) {
-        userId = uid;
-        break;
-      }
-    }
-    
-    if (!userId) {
-      alert('해당 담당자의 사용자 정보를 찾을 수 없습니다.');
-      return;
-    }
-    
-    // 일정 확인 기록 저장
-    const now = new Date().toISOString();
-    await db.ref(`${scheduleCheckPath}/${userId}`).set({
-      lastCheckDate: now,
-      checkedBy: currentUser.email || currentUid,
-      managerName: managerName
-    });
-    
-    alert(`${managerName} 담당자의 일정 확인이 완료되었습니다.`);
-    
-    // 목록 새로고침
-    loadManagerScheduleStatus();
-  } catch (error) {
-    console.error('일정 확인 처리 오류:', error);
-    alert('일정 확인 처리 중 오류가 발생했습니다.');
-  }
 }
 
 // 마지막 확인 이후 경과일 계산
@@ -5070,29 +5466,6 @@ function getDaysSinceCheck(lastCheck) {
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
   
   return diffDays;
-}
-// 날짜시간 포맷 (더 짧게)
-function formatDateTime(dateStr) {
-  if (!dateStr) return '-';
-  try {
-    const date = new Date(dateStr);
-    const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-    // 시간 제거하고 날짜만 표시
-    return kstDate.toISOString().substring(5, 16).replace('T', ' ');
-  } catch (e) {
-    return dateStr;
-  }
-}
-
-// 날짜 포맷
-function formatDate(dateStr) {
-  if (!dateStr) return '-';
-  try {
-    const date = new Date(dateStr);
-    return date.toISOString().substring(0, 10);
-  } catch (e) {
-    return dateStr;
-  }
 }
 
 // 담당자별 현황 정렬
@@ -5159,7 +5532,7 @@ async function confirmCurrentUserSchedule() {
     alert(`${userName}님의 일정 확인이 완료되었습니다.`);
     
     // 담당자별 현황 모달이 열려있다면 새로고침
-    if (document.getElementById('managerStatusModal').style.display === 'block') {
+if (document.getElementById('managerStatusModal').style.display === 'block') {
       loadManagerScheduleStatus();
     }
   } catch (error) {
@@ -5167,9 +5540,397 @@ async function confirmCurrentUserSchedule() {
     alert('일정 확인 처리 중 오류가 발생했습니다.');
   }
 }
+
 // 전체화면 토글 함수 추가
 function toggleManagerStatusFullscreen() {
   const modal = document.getElementById('managerStatusModal');
   modal.classList.toggle('fullscreen');
 }
 
+/** ==================================
+ *  히스토리 데이터 조회 기능
+ * ===================================*/
+async function showHistoryData(project) {
+  if (!project) {
+    alert("공번(수익프로젝트) 정보가 없습니다.");
+    return;
+  }
+  
+  try {
+    // 현재 프로젝트의 데이터 가져오기
+    const currentRow = asData.find(x => x.공번 === project);
+    if (!currentRow) {
+      alert("해당 공번의 데이터를 찾을 수 없습니다.");
+      return;
+    }
+    
+    // AS 히스토리 데이터 가져오기
+    const snapshot = await db.ref(aiHistoryPath).orderByChild("project").equalTo(project).once('value');
+    const historyData = snapshot.val() || {};
+    
+    // 중복 제거 및 데이터 정리
+    const uniqueRecords = new Map();
+    
+    // 현재 데이터 추가
+    if (currentRow["AS접수일자"] && (currentRow.접수내용 || currentRow.조치결과)) {
+      const key = `${currentRow["AS접수일자"]}_${currentRow.접수내용 || ''}_${currentRow.조치결과 || ''}`;
+      uniqueRecords.set(key, {
+        asDate: currentRow["AS접수일자"],
+        plan: currentRow.조치계획 || '',
+        rec: currentRow.접수내용 || '',
+        res: currentRow.조치결과 || '',
+        tEnd: currentRow["기술적종료일"] || ''
+      });
+    }
+    
+    // 히스토리 데이터 추가
+    Object.values(historyData).forEach(rec => {
+      if (!rec.AS접수일자) return;
+      
+      const key = `${rec.AS접수일자}_${rec.접수내용 || ''}_${rec.조치결과 || ''}`;
+      if (!uniqueRecords.has(key)) {
+        uniqueRecords.set(key, {
+          asDate: rec.AS접수일자,
+          plan: rec.조치계획 || '',
+          rec: rec.접수내용 || '',
+          res: rec.조치결과 || '',
+          tEnd: rec.기술적종료일 || ''
+        });
+      }
+    });
+    
+    let allRecords = Array.from(uniqueRecords.values());
+    
+    if (allRecords.length === 0) {
+      alert("해당 공번에 AS 기록이 없습니다.");
+      return;
+    }
+    
+    // 날짜순 정렬
+    allRecords.sort((a, b) => {
+      const dateA = new Date(a.asDate || '1900-01-01');
+      const dateB = new Date(b.asDate || '1900-01-01');
+      return dateB - dateA;
+    });
+    
+    // 원본 데이터 모달 표시 - 기본적으로 전체화면으로 표시
+    openHistoryDataModal(allRecords, project, currentRow, true);
+    
+  } catch (err) {
+    console.error("히스토리 데이터 조회 오류:", err);
+    alert("히스토리 데이터 조회 중 오류가 발생했습니다.");
+  }
+}
+
+function openHistoryDataModal(records, project, rowData, fullscreen = false) {
+  // 기존 모달 제거
+  const existingModal = document.getElementById('historyDataModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+  
+  // 모달 생성
+  const modal = document.createElement('div');
+  modal.id = 'historyDataModal';
+  modal.style.cssText = 'display: block; position: fixed; z-index: var(--z-modal-higher); left: 0; top: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5);';
+  
+  // 전체화면 적용
+  if (fullscreen) {
+    modal.classList.add('fullscreen');
+    modal.style.background = 'rgba(0, 0, 0, 0.7)';
+  }
+  
+  const modalContent = document.createElement('div');
+  modalContent.className = 'modal-content';
+  if (fullscreen) {
+    modalContent.style.cssText = 'background: #fff; width: 100% !important; height: 100% !important; max-width: 100%; max-height: 100%; margin: 0 !important; border-radius: 0; padding: 20px; position: relative; overflow-y: auto;';
+  } else {
+    modalContent.style.cssText = 'background: #fff; margin: 5% auto; width: 1000px; border-radius: 6px; padding: 20px; position: relative; max-height: 85%; overflow-y: auto;';
+  }
+  
+  // 닫기 버튼
+  const closeBtn = document.createElement('span');
+  closeBtn.className = 'close';
+  closeBtn.innerHTML = '&times;';
+  closeBtn.onclick = () => modal.remove();
+  modalContent.appendChild(closeBtn);
+
+  // 전체화면 버튼 추가
+  const fullscreenBtn = document.createElement('button');
+  fullscreenBtn.style.cssText = 'position:absolute; right:45px; top:10px; font-size:0.85em; background:#666; color:#fff; border:none; border-radius:4px; padding:4px 8px; cursor:pointer;';
+  fullscreenBtn.textContent = '전체화면';
+  fullscreenBtn.onclick = () => toggleHistoryDataFullscreen();
+  modalContent.appendChild(fullscreenBtn);
+  
+  // 제목
+  const title = document.createElement('h2');
+  title.textContent = `히스토리 데이터 - ${project}`;
+  modalContent.appendChild(title);
+  
+  // 부제목
+  const subtitle = document.createElement('p');
+  subtitle.style.cssText = 'font-size:0.85em; color:#666; margin-bottom:20px;';
+  subtitle.textContent = `${rowData.shipName || 'N/A'} (${rowData.shipowner || 'N/A'})`;
+  modalContent.appendChild(subtitle);
+  
+  // AI 요약 버튼 추가
+  const aiSummaryBtn = document.createElement('button');
+  aiSummaryBtn.textContent = 'AI 요약';
+  aiSummaryBtn.style.cssText = 'background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-bottom: 20px;';
+  aiSummaryBtn.onclick = () => {
+    // 현재 모달을 유지하면서 AI 요약 실행
+    summarizeHistoryForProject(project);
+  };
+  modalContent.appendChild(aiSummaryBtn);
+  
+  // 테이블 생성
+  const table = document.createElement('table');
+  table.style.cssText = 'width: 100%; border-collapse: collapse; margin-top: 10px;';
+  
+  const thead = document.createElement('thead');
+  thead.innerHTML = `
+    <tr style="background: #f8f9fa;">
+      <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 120px;">AS접수일자</th>
+      <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">조치계획</th>
+      <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">접수내용</th>
+      <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">조치결과</th>
+      <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 120px;">기술적종료일</th>
+    </tr>
+  `;
+  table.appendChild(thead);
+  
+  const tbody = document.createElement('tbody');
+  records.forEach(rec => {
+    const tr = document.createElement('tr');
+    
+    // 각 셀 생성 (클릭 시 전체 내용 표시)
+    ['asDate', 'plan', 'rec', 'res', 'tEnd'].forEach((field, idx) => {
+      const td = document.createElement('td');
+      td.style.cssText = 'border: 1px solid #ddd; padding: 8px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; cursor: pointer; white-space: nowrap;';
+      
+      const value = rec[field] || '-';
+      td.textContent = value;
+      td.title = value;
+      
+      if (value !== '-') {
+        td.onclick = () => {
+          // openContentModal 호출 전에 모달 상태 확인
+          openContentModalOverHistory(value);
+        };
+      }
+      
+      tr.appendChild(td);
+    });
+    
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  
+  modalContent.appendChild(table);
+  modal.appendChild(modalContent);
+  document.body.appendChild(modal);
+}
+
+// 히스토리 데이터 모달 위에 내용 모달 표시
+function openContentModalOverHistory(text) {
+  const htmlText = convertMarkdownToHTML(text);
+  const contentModal = document.getElementById('contentModal');
+  const contentText = document.getElementById('contentText');
+  
+  contentText.innerHTML = htmlText;
+  
+  // 모달 표시
+  contentModal.style.display = 'block';
+  contentModal.style.zIndex = '10020'; // 히스토리 모달(10002)보다 높게
+  
+  // 모달 컨텐츠도 z-index 설정
+  const modalContent = contentModal.querySelector('.modal-content');
+  if (modalContent) {
+    modalContent.style.zIndex = '10021';
+    modalContent.style.position = 'relative';
+  }
+  
+  // 배경을 더 진하게 해서 구분 명확히
+  contentModal.style.background = 'rgba(0, 0, 0, 0.8)';
+}
+
+// 히스토리 데이터 모달 전체화면 토글 함수
+function toggleHistoryDataFullscreen() {
+  const modal = document.getElementById('historyDataModal');
+  modal.classList.toggle('fullscreen');
+}
+
+/** ==================================
+ *  유틸리티 함수
+ * ===================================*/
+// 두 객체 비교 함수
+function isEqual(obj1, obj2) {
+  if (!obj1 || !obj2) return false;
+  
+  const keys1 = Object.keys(obj1);
+  const keys2 = Object.keys(obj2);
+  
+  if (keys1.length !== keys2.length) return false;
+  
+  for (const key of keys1) {
+    if (obj1[key] !== obj2[key]) return false;
+  }
+  
+  return true;
+}
+
+// 날짜시간 포맷 (더 짧게)
+function formatDateTime(dateStr) {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr);
+    const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+    // 시간 제거하고 날짜만 표시
+    return kstDate.toISOString().substring(5, 16).replace('T', ' ');
+  } catch (e) {
+    return dateStr;
+  }
+}
+
+// 날짜 포맷
+function formatDate(dateStr) {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr);
+    return date.toISOString().substring(0, 10);
+  } catch (e) {
+    return dateStr;
+  }
+}
+
+// 내용 보기 모달을 창으로 열기 (전체화면 아님)
+function openContentModalAsWindow(text) {
+  const htmlText = convertMarkdownToHTML(text);
+  document.getElementById('contentText').innerHTML = htmlText;
+  const modal = document.getElementById('contentModal');
+  modal.style.display = 'block';
+  modal.style.zIndex = '10001';
+  
+  // 전체화면 클래스 제거 (창 모드로 표시)
+  modal.classList.remove('fullscreen');
+  
+  // 모달 컨텐츠 크기 조정
+  const modalContent = modal.querySelector('.modal-content');
+  modalContent.style.cssText = 'background: #fff; margin: 5% auto; width: 800px; max-width: 95%; border-radius: 12px; padding: 30px; position: relative; max-height: 85%; overflow-y: auto;';
+}
+
+// 안전한 이벤트 리스너 등록
+function safeAddEventListener(elementId, event, handler) {
+  ensureDOMReady(() => {
+    const element = document.getElementById(elementId);
+    if (element) {
+      element.addEventListener(event, handler);
+    } else {
+      console.warn(`요소 '${elementId}'에 이벤트 리스너를 등록할 수 없습니다.`);
+    }
+  });
+}
+
+// 사용 예시
+safeAddEventListener('basicViewBtn', 'click', () => switchTableView(false));
+safeAddEventListener('extendedViewBtn', 'click', () => switchTableView(true));
+
+
+
+// DOM 준비 확인 함수
+function ensureDOMReady(callback) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', callback);
+  } else {
+    callback();
+  }
+}
+
+
+/** ==================================
+ *  최종 초기화 및 이벤트 바인딩
+ * ===================================*/
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM 로드 완료 - 시스템 초기화 시작');
+  
+  // 안전한 요소 접근 - null 체크 추가
+  const basicViewBtn = document.getElementById('basicViewBtn');
+  if (basicViewBtn) {
+    basicViewBtn.classList.add('active');
+    console.log('기본 뷰 버튼 활성화 완료');
+  } else {
+    console.warn('basicViewBtn 요소를 찾을 수 없습니다.');
+  }
+  
+  console.log('시스템 초기화 완료');
+});
+
+// 페이지 언로드 시 정리 작업
+window.addEventListener('beforeunload', () => {
+  // 미저장 변경사항이 있을 경우 경고
+  if (modifiedRows.size > 0) {
+    return '저장되지 않은 변경사항이 있습니다. 정말 페이지를 떠나시겠습니까?';
+  }
+});
+
+// 전역 오류 처리 개선
+window.addEventListener('error', (event) => {
+  console.error('전역 오류 발생:', {
+    message: event.error?.message || '알 수 없는 오류',
+    filename: event.filename || '알 수 없는 파일',
+    lineno: event.lineno || '알 수 없는 라인',
+    colno: event.colno || '알 수 없는 컬럼',
+    stack: event.error?.stack || '스택 정보 없음'
+  });
+  
+  // 사용자에게 친화적인 오류 메시지 표시
+  if (event.error?.message?.includes('Firebase')) {
+    console.error('Firebase 관련 오류 - 연결 상태를 확인하세요');
+  } else if (event.error?.message?.includes('fetch')) {
+    console.error('네트워크 관련 오류 - 인터넷 연결을 확인하세요');
+  } else if (event.error?.message?.includes('null')) {
+    console.error('요소 접근 오류 - DOM이 완전히 로드되지 않았을 수 있습니다');
+  }
+});
+
+// Promise 거부 처리
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('처리되지 않은 Promise 거부:', event.reason);
+  event.preventDefault(); // 기본 오류 표시 방지
+});
+
+// 성능 모니터링
+if (window.performance) {
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      const perfData = performance.getEntriesByType('navigation')[0];
+      if (perfData) {
+        console.log('페이지 로드 성능:', {
+          loadTime: Math.round(perfData.loadEventEnd - perfData.fetchStart),
+          domContentLoaded: Math.round(perfData.domContentLoadedEventEnd - perfData.fetchStart),
+          firstPaint: Math.round(perfData.responseEnd - perfData.fetchStart)
+        });
+      }
+    }, 0);
+  });
+}
+
+// 메모리 사용량 모니터링 (개발 환경에서만)
+if (process?.env?.NODE_ENV === 'development' && window.performance?.memory) {
+  setInterval(() => {
+    const memory = window.performance.memory;
+    if (memory.usedJSHeapSize > memory.jsHeapSizeLimit * 0.9) {
+      console.warn('메모리 사용량이 높습니다:', {
+        used: Math.round(memory.usedJSHeapSize / 1024 / 1024) + 'MB',
+        limit: Math.round(memory.jsHeapSizeLimit / 1024 / 1024) + 'MB'
+      });
+    }
+  }, 30000); // 30초마다 체크
+}
+
+
+
+
+console.log('AS 현황 관리 시스템 스크립트 로드 완료');
+console.log('버전: 2.0.0 (개선된 UI/UX, 기본/확장 뷰, 관리자 보안, 정렬 개선, 실시간 저장 비활성화)');
+console.log('주요 기능: 다국어 지원, AI 요약, API 연동, 히스토리 관리, 담당자별 현황, 경과일 필터링');
