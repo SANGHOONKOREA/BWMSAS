@@ -2350,8 +2350,9 @@ th[data-field="수정일"], td[data-field="수정일"] { min-width: 120px; }
    ================================= */
 #forgotPasswordModal,
 #changePasswordModal {
-  z-index: var(--z-modal-highest);
-  background: rgba(0, 0, 0, 0.5);
+  z-index: var(--z-critical) !important; /* 최고 우선순위로 변경 */
+  background: rgba(0, 0, 0, 0.7) !important; /* 배경 강화 */
+  backdrop-filter: blur(3px) !important; /* 블러 효과 추가 */
 }
 
 #forgotPasswordModal .modal-content,
