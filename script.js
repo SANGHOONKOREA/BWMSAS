@@ -44,13 +44,10 @@ let asData = [];
 let currentMode = 'manager';  // 초기: 담당자
 let sortField = '';
 let sortAsc = true;
-let adminAuthorized = false;  // 관리자 비번 확인용
-let userData = [];
 let isTableRendering = false; // 테이블 렌더링 중복 방지
 let tableRenderTimeout = null;
-let dataChanged = false;      // 데이터 변경 여부 추적
 let dataLoaded = false; // 데이터 로드 여부
-let pendingRowUpdates = new Map(); // 업데이트 대기 중인 행
+
 
 // === 성능 개선을 위한 추가 변수 ===
 let currentFilterState = {}; // 필터 상태 저장
@@ -78,8 +75,8 @@ const apiConfigPath = "as-service/admin/apiConfig";
 const userMetaPath = 'as-service/user_meta';
 const adminPasswordPath = 'as-service/admin/password'; // 관리자 비밀번호 경로
 
-// 전역 변수 섹션에 추가
-const mainUsersPath = 'users'; // main.js에서 사용하는 경로
+
+
 
 // AI 설정 글로벌 변수
 let g_aiConfig = {
@@ -4076,34 +4073,6 @@ function initializeLanguage() {
   }
 }
 
-// 추가 안전성을 위한 유틸리티 함수
-function safeGetElement(id) {
-  const element = document.getElementById(id);
-  if (!element) {
-    console.warn(`요소 '${id}'를 찾을 수 없습니다.`);
-  }
-  return element;
-}
-
-// 안전한 모달 표시 함수
-function safeShowModal(modalId) {
-  const modal = safeGetElement(modalId);
-  if (modal) {
-    modal.style.display = 'block';
-    return true;
-  }
-  return false;
-}
-
-// 안전한 모달 숨김 함수
-function safeHideModal(modalId) {
-  const modal = safeGetElement(modalId);
-  if (modal) {
-    modal.style.display = 'none';
-    return true;
-  }
-  return false;
-}
 
 // 모든 필터 초기화
 function clearFilters() {
@@ -4215,20 +4184,6 @@ function openContentModal(text) {
   const modal = document.getElementById('contentModal');
   modal.style.display = 'block';
   
-  // 히스토리 데이터 모달이 열려있는지 확인
-  const historyDataModal = document.getElementById('historyDataModal');
-  if (historyDataModal && historyDataModal.style.display === 'block') {
-    // 히스토리 데이터 모달보다 위에 표시
-    modal.style.zIndex = '10020';
-    const modalContent = modal.querySelector('.modal-content');
-    if (modalContent) {
-      modalContent.style.zIndex = '10021';
-    }
-  } else {
-    // 일반적인 경우
-    modal.style.zIndex = '10001';
-  }
-}
 
 function closeContentModal() {
   const modal = document.getElementById('contentModal');
@@ -4329,7 +4284,7 @@ function autoFitColumn(th) {
  *  열/행 크기 조절 관련 기능
  * ===================================*/
 let resizingCol = null, startX = 0, startW = 0;
-let resizingRow = null, startY = 0, startH = 0;
+
 
 // 마우스 다운 핸들러
 function handleMouseDown(e) {
@@ -4369,35 +4324,6 @@ function stopColumnResize() {
   resizingCol = null;
 }
 
-// 행 높이 조절 시작
-function startRowResize(e, tr) {
-  resizingRow = tr;
-  startY = e.pageY;
-  startH = tr.offsetHeight;
-  
-  document.addEventListener('mousemove', handleRowResize);
-  document.addEventListener('mouseup', stopRowResize);
-  e.preventDefault();
-}
-
-// 행 높이 조절 중
-function handleRowResize(e) {
-  if (!resizingRow) return;
-  
-  const dy = e.pageY - startY;
-  const newHeight = startH + dy;
-  
-  if (newHeight > 20) {
-    resizingRow.style.height = newHeight + 'px';
-  }
-}
-
-// 행 높이 조절 종료
-function stopRowResize() {
-  document.removeEventListener('mousemove', handleRowResize);
-  document.removeEventListener('mouseup', stopRowResize);
-  resizingRow = null;
-}
 
 /** ==================================
  *  엑셀 다운로드/업로드
@@ -6072,48 +5998,7 @@ function toggleHistoryDataFullscreen() {
   modal.classList.toggle('fullscreen');
 }
 
-/** ==================================
- *  유틸리티 함수
- * ===================================*/
-// 두 객체 비교 함수
-function isEqual(obj1, obj2) {
-  if (!obj1 || !obj2) return false;
-  
-  const keys1 = Object.keys(obj1);
-  const keys2 = Object.keys(obj2);
-  
-  if (keys1.length !== keys2.length) return false;
-  
-  for (const key of keys1) {
-    if (obj1[key] !== obj2[key]) return false;
-  }
-  
-  return true;
-}
 
-// 날짜시간 포맷 (더 짧게)
-function formatDateTime(dateStr) {
-  if (!dateStr) return '-';
-  try {
-    const date = new Date(dateStr);
-    const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-    // 시간 제거하고 날짜만 표시
-    return kstDate.toISOString().substring(5, 16).replace('T', ' ');
-  } catch (e) {
-    return dateStr;
-  }
-}
-
-// 날짜 포맷
-function formatDate(dateStr) {
-  if (!dateStr) return '-';
-  try {
-    const date = new Date(dateStr);
-    return date.toISOString().substring(0, 10);
-  } catch (e) {
-    return dateStr;
-  }
-}
 
 // 내용 보기 모달을 창으로 열기 (전체화면 아님)
 function openContentModalAsWindow(text) {
@@ -6129,33 +6014,6 @@ function openContentModalAsWindow(text) {
   // 모달 컨텐츠 크기 조정
   const modalContent = modal.querySelector('.modal-content');
   modalContent.style.cssText = 'background: #fff; margin: 5% auto; width: 800px; max-width: 95%; border-radius: 12px; padding: 30px; position: relative; max-height: 85%; overflow-y: auto;';
-}
-
-// 안전한 이벤트 리스너 등록
-function safeAddEventListener(elementId, event, handler) {
-  ensureDOMReady(() => {
-    const element = document.getElementById(elementId);
-    if (element) {
-      element.addEventListener(event, handler);
-    } else {
-      console.warn(`요소 '${elementId}'에 이벤트 리스너를 등록할 수 없습니다.`);
-    }
-  });
-}
-
-// 사용 예시
-safeAddEventListener('basicViewBtn', 'click', () => switchTableView(false));
-safeAddEventListener('extendedViewBtn', 'click', () => switchTableView(true));
-
-
-
-// DOM 준비 확인 함수
-function ensureDOMReady(callback) {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', callback);
-  } else {
-    callback();
-  }
 }
 
 
@@ -6225,19 +6083,6 @@ if (window.performance) {
       }
     }, 0);
   });
-}
-
-// 메모리 사용량 모니터링 (개발 환경에서만)
-if (process?.env?.NODE_ENV === 'development' && window.performance?.memory) {
-  setInterval(() => {
-    const memory = window.performance.memory;
-    if (memory.usedJSHeapSize > memory.jsHeapSizeLimit * 0.9) {
-      console.warn('메모리 사용량이 높습니다:', {
-        used: Math.round(memory.usedJSHeapSize / 1024 / 1024) + 'MB',
-        limit: Math.round(memory.jsHeapSizeLimit / 1024 / 1024) + 'MB'
-      });
-    }
-  }, 30000); // 30초마다 체크
 }
 
 
