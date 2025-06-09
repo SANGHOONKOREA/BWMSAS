@@ -2345,6 +2345,42 @@ th[data-field="수정일"], td[data-field="수정일"] { min-width: 120px; }
   max-width: none;
 }
 
+/* 클릭 가능한 셀 스타일 */
+#historyDataModal td.clickable {
+  background-color: #f8f9fa !important;
+  color: #007bff !important;
+  text-decoration: underline !important;
+  cursor: pointer !important;
+}
+
+#historyDataModal td.clickable:hover {
+  background-color: #e3f2fd !important;
+  color: #0056b3 !important;
+  transform: scale(1.02);
+}
+/* 히스토리 클릭 가능한 셀 스타일 */
+.history-clickable-cell {
+  background-color: #f8f9fa !important;
+  color: #007bff !important;
+  text-decoration: underline !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.history-clickable-cell:hover {
+  background-color: #e3f2fd !important;
+  color: #0056b3 !important;
+  transform: scale(1.02) !important;
+}
+
+/* 히스토리 내용 모달 스타일 */
+#historyContentModal {
+  z-index: 10025 !important;
+}
+
+#historyContentModal .modal-content {
+  z-index: 10026 !important;
+}
 /* =================================
    비밀번호 관련 모달
    ================================= */
