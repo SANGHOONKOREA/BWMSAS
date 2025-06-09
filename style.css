@@ -1481,11 +1481,6 @@ th[data-field="수정일"], td[data-field="수정일"] { min-width: 120px; }
 /* =================================
    관리자 비밀번호 모달 - 보안 강화
    ================================= */
-#adminPasswordModal {
-  z-index: var(--z-modal-highest);
-  background: rgba(0, 0, 0, 0.7) !important;
-  backdrop-filter: blur(4px) !important;
-}
 
 #adminPasswordModal .modal-content {
   width: 400px;
@@ -3160,39 +3155,7 @@ img, video {
   transition: all 0.2s ease;
 }
 
-/* =================================
-   추가 유틸리티 클래스
-   ================================= */
-.text-center { text-align: center; }
-.text-left { text-align: left; }
-.text-right { text-align: right; }
-.font-bold { font-weight: bold; }
-.font-normal { font-weight: normal; }
-.cursor-pointer { cursor: pointer; }
-.cursor-not-allowed { cursor: not-allowed; }
-.opacity-50 { opacity: 0.5; }
-.opacity-75 { opacity: 0.75; }
 
-/* 마진/패딩 유틸리티 */
-.m-0 { margin: 0; }
-.p-0 { padding: 0; }
-.mt-1 { margin-top: 0.25rem; }
-.mb-1 { margin-bottom: 0.25rem; }
-.pt-1 { padding-top: 0.25rem; }
-.pb-1 { padding-bottom: 0.25rem; }
-
-/* 색상 유틸리티 */
-.text-primary { color: var(--primary-color); }
-.text-success { color: var(--success-color); }
-.text-warning { color: var(--warning-color); }
-.text-danger { color: var(--danger-color); }
-.text-info { color: var(--info-color); }
-
-.bg-primary { background-color: var(--primary-color); }
-.bg-success { background-color: var(--success-color); }
-.bg-warning { background-color: var(--warning-color); }
-.bg-danger { background-color: var(--danger-color); }
-.bg-info { background-color: var(--info-color); }
 
 /* =================================
    종료
