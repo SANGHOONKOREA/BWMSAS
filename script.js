@@ -44,10 +44,13 @@ let asData = [];
 let currentMode = 'manager';  // 초기: 담당자
 let sortField = '';
 let sortAsc = true;
+let adminAuthorized = false;  // 관리자 비번 확인용
+let userData = [];
 let isTableRendering = false; // 테이블 렌더링 중복 방지
 let tableRenderTimeout = null;
+let dataChanged = false;      // 데이터 변경 여부 추적
 let dataLoaded = false; // 데이터 로드 여부
-
+let pendingRowUpdates = new Map(); // 업데이트 대기 중인 행
 
 // === 성능 개선을 위한 추가 변수 ===
 let currentFilterState = {}; // 필터 상태 저장
@@ -75,8 +78,8 @@ const apiConfigPath = "as-service/admin/apiConfig";
 const userMetaPath = 'as-service/user_meta';
 const adminPasswordPath = 'as-service/admin/password'; // 관리자 비밀번호 경로
 
-
-
+// 전역 변수 섹션에 추가
+const mainUsersPath = 'users'; // main.js에서 사용하는 경로
 
 // AI 설정 글로벌 변수
 let g_aiConfig = {
@@ -4073,6 +4076,34 @@ function initializeLanguage() {
   }
 }
 
+// 추가 안전성을 위한 유틸리티 함수
+function safeGetElement(id) {
+  const element = document.getElementById(id);
+  if (!element) {
+    console.warn(`요소 '${id}'를 찾을 수 없습니다.`);
+  }
+  return element;
+}
+
+// 안전한 모달 표시 함수
+function safeShowModal(modalId) {
+  const modal = safeGetElement(modalId);
+  if (modal) {
+    modal.style.display = 'block';
+    return true;
+  }
+  return false;
+}
+
+// 안전한 모달 숨김 함수
+function safeHideModal(modalId) {
+  const modal = safeGetElement(modalId);
+  if (modal) {
+    modal.style.display = 'none';
+    return true;
+  }
+  return false;
+}
 
 // 모든 필터 초기화
 function clearFilters() {
@@ -4184,6 +4215,20 @@ function openContentModal(text) {
   const modal = document.getElementById('contentModal');
   modal.style.display = 'block';
   
+  // 히스토리 데이터 모달이 열려있는지 확인
+  const historyDataModal = document.getElementById('historyDataModal');
+  if (historyDataModal && historyDataModal.style.display === 'block') {
+    // 히스토리 데이터 모달보다 위에 표시
+    modal.style.zIndex = '10020';
+    const modalContent = modal.querySelector('.modal-content');
+    if (modalContent) {
+      modalContent.style.zIndex = '10021';
+    }
+  } else {
+    // 일반적인 경우
+    modal.style.zIndex = '10001';
+  }
+}
 
 function closeContentModal() {
   const modal = document.getElementById('contentModal');
@@ -4284,7 +4329,7 @@ function autoFitColumn(th) {
  *  열/행 크기 조절 관련 기능
  * ===================================*/
 let resizingCol = null, startX = 0, startW = 0;
-
+let resizingRow = null, startY = 0, startH = 0;
 
 // 마우스 다운 핸들러
 function handleMouseDown(e) {
@@ -4324,6 +4369,35 @@ function stopColumnResize() {
   resizingCol = null;
 }
 
+// 행 높이 조절 시작
+function startRowResize(e, tr) {
+  resizingRow = tr;
+  startY = e.pageY;
+  startH = tr.offsetHeight;
+  
+  document.addEventListener('mousemove', handleRowResize);
+  document.addEventListener('mouseup', stopRowResize);
+  e.preventDefault();
+}
+
+// 행 높이 조절 중
+function handleRowResize(e) {
+  if (!resizingRow) return;
+  
+  const dy = e.pageY - startY;
+  const newHeight = startH + dy;
+  
+  if (newHeight > 20) {
+    resizingRow.style.height = newHeight + 'px';
+  }
+}
+
+// 행 높이 조절 종료
+function stopRowResize() {
+  document.removeEventListener('mousemove', handleRowResize);
+  document.removeEventListener('mouseup', stopRowResize);
+  resizingRow = null;
+}
 
 /** ==================================
  *  엑셀 다운로드/업로드
@@ -5641,31 +5715,36 @@ async function showHistoryData(project) {
     
     // 중복 제거 및 데이터 정리
     const uniqueRecords = new Map();
+    let recordIndex = 0;
     
     // 현재 데이터 추가
     if (currentRow["AS접수일자"] && (currentRow.접수내용 || currentRow.조치결과)) {
       const key = `${currentRow["AS접수일자"]}_${currentRow.접수내용 || ''}_${currentRow.조치결과 || ''}`;
       uniqueRecords.set(key, {
+        id: `current_${recordIndex++}`,
         asDate: currentRow["AS접수일자"],
         plan: currentRow.조치계획 || '',
         rec: currentRow.접수내용 || '',
         res: currentRow.조치결과 || '',
-        tEnd: currentRow["기술적종료일"] || ''
+        tEnd: currentRow["기술적종료일"] || '',
+        aiSummary: '' // AI 요약 필드 추가
       });
     }
     
     // 히스토리 데이터 추가
-    Object.values(historyData).forEach(rec => {
+    Object.entries(historyData).forEach(([historyId, rec]) => {
       if (!rec.AS접수일자) return;
       
       const key = `${rec.AS접수일자}_${rec.접수내용 || ''}_${rec.조치결과 || ''}`;
       if (!uniqueRecords.has(key)) {
         uniqueRecords.set(key, {
+          id: historyId,
           asDate: rec.AS접수일자,
           plan: rec.조치계획 || '',
           rec: rec.접수내용 || '',
           res: rec.조치결과 || '',
-          tEnd: rec.기술적종료일 || ''
+          tEnd: rec.기술적종료일 || '',
+          aiSummary: rec.aiSummary || '' // 기존 AI 요약 불러오기
         });
       }
     });
@@ -5746,38 +5825,81 @@ if (fullscreen) {
   subtitle.textContent = `${rowData.shipName || 'N/A'} (${rowData.shipowner || 'N/A'})`;
   modalContent.appendChild(subtitle);
   
-  // AI 요약 버튼 추가
-  const aiSummaryBtn = document.createElement('button');
-  aiSummaryBtn.textContent = 'AI 요약';
-  aiSummaryBtn.style.cssText = 'background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-bottom: 20px;';
-  aiSummaryBtn.onclick = () => {
-    // 현재 모달을 유지하면서 AI 요약 실행
-    summarizeHistoryForProject(project);
-  };
-  modalContent.appendChild(aiSummaryBtn);
+// 전체 AI 요약 버튼 추가 (이름 변경)
+const aiSummaryBtn = document.createElement('button');
+aiSummaryBtn.textContent = '전체 AI 요약';
+aiSummaryBtn.style.cssText = 'background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-bottom: 20px; margin-right: 10px;';
+aiSummaryBtn.onclick = () => {
+  // 현재 모달을 유지하면서 AI 요약 실행
+  summarizeHistoryForProject(project);
+};
+modalContent.appendChild(aiSummaryBtn);
   
   // 테이블 생성
   const table = document.createElement('table');
   table.style.cssText = 'width: 100%; border-collapse: collapse; margin-top: 10px;';
   
-  const thead = document.createElement('thead');
-  thead.innerHTML = `
-    <tr style="background: #f8f9fa;">
-      <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 120px;">AS접수일자</th>
-      <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">조치계획</th>
-      <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">접수내용</th>
-      <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">조치결과</th>
-      <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 120px;">기술적종료일</th>
-    </tr>
-  `;
+const thead = document.createElement('thead');
+thead.innerHTML = `
+  <tr style="background: #f8f9fa;">
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 120px;">AI 요약</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 120px;">AS접수일자</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">조치계획</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">접수내용</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">조치결과</th>
+    <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 120px;">기술적종료일</th>
+  </tr>
+`;
   table.appendChild(thead);
   
-// 히스토리 데이터 모달에서 테이블 생성 부분 수정
 const tbody = document.createElement('tbody');
-records.forEach(rec => {
+records.forEach((rec, index) => {
   const tr = document.createElement('tr');
   
-  // 각 셀 생성 (클릭 시 전체 내용 표시)
+  // AI 요약 셀 추가 (가장 왼쪽)
+  const aiTd = document.createElement('td');
+  aiTd.style.cssText = 'border: 1px solid #ddd; padding: 8px; text-align: center; vertical-align: middle;';
+  
+  if (rec.aiSummary && rec.aiSummary.trim()) {
+    // AI 요약이 있는 경우 - 요약 보기 버튼
+    const viewBtn = document.createElement('button');
+    viewBtn.textContent = '요약 보기';
+    viewBtn.style.cssText = 'background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8em; margin-bottom: 2px; display: block; width: 100%;';
+    viewBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setTimeout(() => {
+        openContentModalOverHistory(rec.aiSummary);
+      }, 50);
+    };
+    aiTd.appendChild(viewBtn);
+    
+    // AI 재요약 버튼
+    const resummaryBtn = document.createElement('button');
+    resummaryBtn.textContent = '재요약';
+    resummaryBtn.style.cssText = 'background: #ffc107; color: #212529; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8em; display: block; width: 100%;';
+    resummaryBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      summarizeHistoryRecord(rec, project, index);
+    };
+    aiTd.appendChild(resummaryBtn);
+  } else {
+    // AI 요약이 없는 경우 - AI 요약 버튼
+    const summaryBtn = document.createElement('button');
+    summaryBtn.textContent = 'AI 요약';
+    summaryBtn.style.cssText = 'background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-size: 0.8em; width: 100%;';
+    summaryBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      summarizeHistoryRecord(rec, project, index);
+    };
+    aiTd.appendChild(summaryBtn);
+  }
+  
+  tr.appendChild(aiTd);
+  
+  // 기존 셀들 생성 (클릭 시 전체 내용 표시)
   ['asDate', 'plan', 'rec', 'res', 'tEnd'].forEach((field, idx) => {
     const td = document.createElement('td');
     td.style.cssText = 'border: 1px solid #ddd; padding: 8px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
@@ -5830,7 +5952,121 @@ records.forEach(rec => {
   modal.appendChild(modalContent);
   document.body.appendChild(modal);
 }
+async function summarizeHistoryRecord(record, project, recordIndex) {
+  if (!record || (!record.rec && !record.res)) {
+    alert("요약할 내용이 없습니다.");
+    return;
+  }
+  
+  const basePrompt = g_aiConfig.promptRow || "접수내용과 조치결과를 간단히 요약해주세요.";
+  const textOriginal = 
+    `AS접수일자: ${record.asDate || 'N/A'}\n` +
+    `접수내용:\n${record.rec || "없음"}\n\n` +
+    `조치결과:\n${record.res || "없음"}\n`;
 
+  const finalPrompt = basePrompt + "\n\n" + textOriginal;
+
+  showAiProgressModal();
+  clearAiProgressText();
+  document.getElementById('aiProgressText').textContent = "[히스토리 단일 레코드 요약 진행 중]\n\n";
+
+  try {
+    const summary = await callAiForSummary(finalPrompt);
+    
+    if (!summary) {
+      alert("AI 요약 실패 (빈 값 반환)");
+      return;
+    }
+    
+    // 데이터베이스에 AI 요약 저장
+    if (record.id && record.id.startsWith('current_')) {
+      // 현재 데이터인 경우 - 새로운 히스토리 레코드로 저장
+      const newHistoryId = db.ref(aiHistoryPath).push().key;
+      await db.ref(`${aiHistoryPath}/${newHistoryId}`).set({
+        project: project,
+        AS접수일자: record.asDate,
+        조치계획: record.plan,
+        접수내용: record.rec,
+        조치결과: record.res,
+        기술적종료일: record.tEnd,
+        aiSummary: summary,
+        timestamp: new Date().toISOString()
+      });
+      
+      // 로컬 데이터 업데이트
+      record.aiSummary = summary;
+      record.id = newHistoryId;
+    } else {
+      // 기존 히스토리 레코드인 경우 - 기존 레코드 업데이트
+      await db.ref(`${aiHistoryPath}/${record.id}/aiSummary`).set(summary);
+      
+      // 로컬 데이터 업데이트
+      record.aiSummary = summary;
+    }
+    
+    // 테이블의 해당 행 업데이트
+    updateHistoryTableRow(recordIndex, record);
+    
+    addHistory(`히스토리 AI 요약 완료 - [${project}] ${record.asDate}`);
+    alert("AI 요약이 완료되어 저장되었습니다.");
+  } catch (err) {
+    console.error("히스토리 AI 요약 오류:", err);
+    alert("AI 요약 처리 중 오류가 발생했습니다.");
+  } finally {
+    closeAiProgressModal();
+  }
+}
+
+function updateHistoryTableRow(rowIndex, record) {
+  const modal = document.getElementById('historyDataModal');
+  if (!modal) return;
+  
+  const table = modal.querySelector('table tbody');
+  if (!table || !table.children[rowIndex]) return;
+  
+  const tr = table.children[rowIndex];
+  const aiTd = tr.children[0]; // 첫 번째 셀이 AI 요약 셀
+  
+  // AI 요약 셀 내용 업데이트
+  aiTd.innerHTML = '';
+  
+  if (record.aiSummary && record.aiSummary.trim()) {
+    // AI 요약이 있는 경우 - 요약 보기 버튼
+    const viewBtn = document.createElement('button');
+    viewBtn.textContent = '요약 보기';
+    viewBtn.style.cssText = 'background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8em; margin-bottom: 2px; display: block; width: 100%;';
+    viewBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setTimeout(() => {
+        openContentModalOverHistory(record.aiSummary);
+      }, 50);
+    };
+    aiTd.appendChild(viewBtn);
+    
+    // AI 재요약 버튼
+    const resummaryBtn = document.createElement('button');
+    resummaryBtn.textContent = '재요약';
+    resummaryBtn.style.cssText = 'background: #ffc107; color: #212529; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8em; display: block; width: 100%;';
+    resummaryBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      summarizeHistoryRecord(record, record.project, rowIndex);
+    };
+    aiTd.appendChild(resummaryBtn);
+  } else {
+    // AI 요약이 없는 경우 - AI 요약 버튼
+    const summaryBtn = document.createElement('button');
+    summaryBtn.textContent = 'AI 요약';
+    summaryBtn.style.cssText = 'background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-size: 0.8em; width: 100%;';
+    summaryBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      summarizeHistoryRecord(record, record.project, rowIndex);
+    };
+    aiTd.appendChild(summaryBtn);
+  }
+}
 function openContentModalOverHistory(text) {
   // 히스토리 데이터 모달 찾기
   const historyModal = document.getElementById('historyDataModal');
@@ -5998,7 +6234,48 @@ function toggleHistoryDataFullscreen() {
   modal.classList.toggle('fullscreen');
 }
 
+/** ==================================
+ *  유틸리티 함수
+ * ===================================*/
+// 두 객체 비교 함수
+function isEqual(obj1, obj2) {
+  if (!obj1 || !obj2) return false;
+  
+  const keys1 = Object.keys(obj1);
+  const keys2 = Object.keys(obj2);
+  
+  if (keys1.length !== keys2.length) return false;
+  
+  for (const key of keys1) {
+    if (obj1[key] !== obj2[key]) return false;
+  }
+  
+  return true;
+}
 
+// 날짜시간 포맷 (더 짧게)
+function formatDateTime(dateStr) {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr);
+    const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+    // 시간 제거하고 날짜만 표시
+    return kstDate.toISOString().substring(5, 16).replace('T', ' ');
+  } catch (e) {
+    return dateStr;
+  }
+}
+
+// 날짜 포맷
+function formatDate(dateStr) {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr);
+    return date.toISOString().substring(0, 10);
+  } catch (e) {
+    return dateStr;
+  }
+}
 
 // 내용 보기 모달을 창으로 열기 (전체화면 아님)
 function openContentModalAsWindow(text) {
@@ -6014,6 +6291,33 @@ function openContentModalAsWindow(text) {
   // 모달 컨텐츠 크기 조정
   const modalContent = modal.querySelector('.modal-content');
   modalContent.style.cssText = 'background: #fff; margin: 5% auto; width: 800px; max-width: 95%; border-radius: 12px; padding: 30px; position: relative; max-height: 85%; overflow-y: auto;';
+}
+
+// 안전한 이벤트 리스너 등록
+function safeAddEventListener(elementId, event, handler) {
+  ensureDOMReady(() => {
+    const element = document.getElementById(elementId);
+    if (element) {
+      element.addEventListener(event, handler);
+    } else {
+      console.warn(`요소 '${elementId}'에 이벤트 리스너를 등록할 수 없습니다.`);
+    }
+  });
+}
+
+// 사용 예시
+safeAddEventListener('basicViewBtn', 'click', () => switchTableView(false));
+safeAddEventListener('extendedViewBtn', 'click', () => switchTableView(true));
+
+
+
+// DOM 준비 확인 함수
+function ensureDOMReady(callback) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', callback);
+  } else {
+    callback();
+  }
 }
 
 
@@ -6083,6 +6387,19 @@ if (window.performance) {
       }
     }, 0);
   });
+}
+
+// 메모리 사용량 모니터링 (개발 환경에서만)
+if (process?.env?.NODE_ENV === 'development' && window.performance?.memory) {
+  setInterval(() => {
+    const memory = window.performance.memory;
+    if (memory.usedJSHeapSize > memory.jsHeapSizeLimit * 0.9) {
+      console.warn('메모리 사용량이 높습니다:', {
+        used: Math.round(memory.usedJSHeapSize / 1024 / 1024) + 'MB',
+        limit: Math.round(memory.jsHeapSizeLimit / 1024 / 1024) + 'MB'
+      });
+    }
+  }, 30000); // 30초마다 체크
 }
 
 
