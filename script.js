@@ -768,18 +768,163 @@ function checkAdminPassword(callback) {
   }
 }
 
-// 테이블 뷰 전환 함수
+// ============ 수정된 테이블 뷰 전환 함수 - 필터 상태 유지 및 성능 최적화 ============
 function switchTableView(extended) {
+  // 이미 같은 모드면 불필요한 작업 방지
+  if (isExtendedView === extended) return;
+  
+  console.log(`뷰 전환 시작: ${isExtendedView ? '확장' : '기본'} → ${extended ? '확장' : '기본'}`);
+  
+  // 현재 스크롤 위치 저장
+  const tableWrapper = document.getElementById('tableWrapper');
+  const scrollTop = tableWrapper ? tableWrapper.scrollTop : 0;
+  const scrollLeft = tableWrapper ? tableWrapper.scrollLeft : 0;
+  
+  // 성능 개선: 현재 필터 상태를 메모리에 보존
+  const preservedFilters = {
+    imo: document.getElementById('filterIMO').value,
+    hull: document.getElementById('filterHull').value,
+    name: document.getElementById('filterName').value,
+    owner: document.getElementById('filterOwner').value,
+    major: document.getElementById('filterMajor').value,
+    repMail: document.getElementById('filterRepMail').value,
+    group: document.getElementById('filterGroup').value,
+    asType: document.getElementById('filterAsType').value,
+    manager: document.getElementById('filterManager').value,
+    active: document.getElementById('filterActive').value,
+    shipType: document.getElementById('filterShipType').value,
+    shipyard: document.getElementById('filterShipyard').value
+  };
+  
+  // 현재 렌더링된 데이터 상태 저장
+  const preservedData = [...lastRenderedData];
+  const preservedFilterActive = isFilterActive;
+  
+  // 뷰 모드 변경
   isExtendedView = extended;
   
   // 버튼 활성화 상태 변경
   document.getElementById('basicViewBtn').classList.toggle('active', !extended);
   document.getElementById('extendedViewBtn').classList.toggle('active', extended);
   
-  // 테이블 다시 렌더링
-  saveFilterState();
-  renderTable(true);
-  restoreFilterState();
+  console.log(`뷰 모드 변경 완료: ${extended ? '확장' : '기본'}`);
+  
+  // 성능 최적화: RequestAnimationFrame을 사용하여 렌더링 최적화
+  requestAnimationFrame(() => {
+    // 렌더링 방지 플래그 설정
+    isTableRendering = true;
+    
+    try {
+      // 테이블 헤더만 즉시 업데이트 (가장 빠른 피드백)
+      renderTableHeaders();
+      
+      // 데이터가 있고 필터가 활성화된 경우에만 바디 렌더링
+      if (preservedData.length > 0) {
+        // 비동기 렌더링으로 성능 향상
+        setTimeout(() => {
+          try {
+            // 필터 상태 복원
+            Object.keys(preservedFilters).forEach(key => {
+              const element = document.getElementById(`filter${key.charAt(0).toUpperCase() + key.slice(1)}`);
+              if (element) {
+                element.value = preservedFilters[key];
+              }
+            });
+            
+            // Ship Type, Shipyard 필터 별도 처리
+            if (document.getElementById('filterShipType')) {
+              document.getElementById('filterShipType').value = preservedFilters.shipType;
+            }
+            if (document.getElementById('filterShipyard')) {
+              document.getElementById('filterShipyard').value = preservedFilters.shipyard;
+            }
+            
+            // 필터 상태 복원
+            currentFilterState = preservedFilters;
+            isFilterActive = preservedFilterActive;
+            lastRenderedData = preservedData;
+            
+            // 테이블 바디 렌더링 - 배치 렌더링으로 성능 향상
+            renderTableBodyOptimized(preservedData);
+            
+            // 스크롤 위치 복원 (렌더링 완료 후)
+            setTimeout(() => {
+              if (tableWrapper) {
+                tableWrapper.scrollTop = scrollTop;
+                tableWrapper.scrollLeft = scrollLeft;
+              }
+              console.log('뷰 전환 완료, 스크롤 위치 복원됨');
+            }, 100);
+            
+          } catch (error) {
+            console.error('뷰 전환 중 오류:', error);
+          } finally {
+            isTableRendering = false;
+          }
+        }, 50); // 50ms 지연으로 UI 응답성 확보
+      } else {
+        // 데이터가 없으면 바로 완료
+        isTableRendering = false;
+        console.log('뷰 전환 완료 (데이터 없음)');
+      }
+      
+    } catch (error) {
+      console.error('뷰 전환 중 오류:', error);
+      isTableRendering = false;
+    }
+  });
+}
+
+// 최적화된 테이블 바디 렌더링 함수
+function renderTableBodyOptimized(data) {
+  const tbody = document.getElementById('asBody');
+  if (!tbody) return;
+  
+  // 기존 내용 제거
+  tbody.innerHTML = '';
+  
+  // 상태 집계 준비
+  const counts = {정상: 0, 부분동작: 0, 동작불가: 0};
+  
+  // 배치 렌더링으로 성능 향상
+  const batchSize = 25; // 배치 크기 축소로 더 부드러운 렌더링
+  let currentIndex = 0;
+  
+  const renderBatch = () => {
+    const fragment = document.createDocumentFragment();
+    const endIndex = Math.min(currentIndex + batchSize, data.length);
+    
+    for (let i = currentIndex; i < endIndex; i++) {
+      const row = data[i];
+      if (counts.hasOwnProperty(row.동작여부)) counts[row.동작여부]++;
+      
+      const tr = createTableRow(row, counts);
+      fragment.appendChild(tr);
+    }
+    
+    tbody.appendChild(fragment);
+    currentIndex = endIndex;
+    
+    // 다음 배치가 있으면 계속 렌더링
+    if (currentIndex < data.length) {
+      requestAnimationFrame(renderBatch);
+    } else {
+      // 렌더링 완료 후 작업
+      updateStatusCounts(counts);
+      updateElapsedDayCounts();
+      updateSidebarList();
+      console.log(`테이블 바디 렌더링 완료: ${data.length}행`);
+    }
+  };
+  
+  // 첫 번째 배치 렌더링 시작
+  if (data.length > 0) {
+    requestAnimationFrame(renderBatch);
+  } else {
+    updateStatusCounts(counts);
+    updateElapsedDayCounts();
+    updateSidebarList();
+  }
 }
 
 // 경과일 필터 설정
@@ -2489,7 +2634,7 @@ function loadData() {
 
 // onCellChange 함수 수정 - 변경된 행 추적 및 수정일 업데이트
 function onCellChange(e) {
-  const uid = e.target.dataset.uid;
+const uid = e.target.dataset.uid;
   const field = e.target.dataset.field;
   let newVal = "";
   
@@ -2791,7 +2936,7 @@ function handleTableClick(e) {
   }
 }
 
-// 테이블 렌더링 함수 - 성능 최적화를 위해 완전히 개선
+// ================ 수정된 테이블 렌더링 함수 - 성능 최적화 및 필터 상태 보존 ================
 /**
  * renderTable - 필터링 및 정렬된 테이블 렌더링
  * @param {boolean} overrideAll - true면 필터가 전부 비어 있어도 전체데이터 표시
@@ -2933,11 +3078,11 @@ function renderTable(overrideAll = false) {
     // 기존 내용 초기화
     tbody.innerHTML = '';
 
-// 테이블 래퍼 스크롤 위치 저장
-const tableWrapper = document.getElementById('tableWrapper');
-const scrollTop = tableWrapper ? tableWrapper.scrollTop : 0;
-const scrollLeft = tableWrapper ? tableWrapper.scrollLeft : 0;
-    
+    // 테이블 래퍼 스크롤 위치 저장
+    const tableWrapper = document.getElementById('tableWrapper');
+    const scrollTop = tableWrapper ? tableWrapper.scrollTop : 0;
+    const scrollLeft = tableWrapper ? tableWrapper.scrollLeft : 0;
+        
     // 배치 렌더링 함수
     const renderBatch = () => {
       const fragment = document.createDocumentFragment();
@@ -2959,11 +3104,11 @@ const scrollLeft = tableWrapper ? tableWrapper.scrollLeft : 0;
         // 렌더링 완료 후 작업
         finishRendering(counts);
 
-// 스크롤 위치 복원
-if (tableWrapper) {
-  tableWrapper.scrollTop = scrollTop;
-  tableWrapper.scrollLeft = scrollLeft;
-}
+        // 스크롤 위치 복원
+        if (tableWrapper) {
+          tableWrapper.scrollTop = scrollTop;
+          tableWrapper.scrollLeft = scrollLeft;
+        }
       }
     };
     
@@ -3860,7 +4005,7 @@ function updateSidebarList() {
     const sortedOwners = Array.from(owMap.entries())
       .sort(([a], [b]) => {
         // 한글 감지 정규식
-        const isHangulA = /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(a.charAt(0));
+const isHangulA = /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(a.charAt(0));
         const isHangulB = /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(b.charAt(0));
         
         // 둘 다 한글이거나 둘 다 영문이면 일반 비교
@@ -3959,8 +4104,6 @@ function safeHideModal(modalId) {
   }
   return false;
 }
-
-
 
 // 모든 필터 초기화
 function clearFilters() {
@@ -4087,20 +4230,9 @@ function openContentModal(text) {
   }
 }
 
-
 // 내용 보기 모달 닫기
 function closeContentModal() {
-  const modal = document.getElementById('contentModal');
-  modal.style.display = 'none';
-  
-  // z-index와 배경색 초기화
-  modal.style.zIndex = '';
-  modal.style.background = '';
-  
-  const modalContent = modal.querySelector('.modal-content');
-  if (modalContent) {
-    modalContent.style.zIndex = '';
-  }
+  document.getElementById('contentModal').style.display = 'none';
 }
 
 // 내용 모달 전체화면 전환
@@ -5236,7 +5368,7 @@ async function loadManagerScheduleStatus() {
       // UID를 찾았으면 데이터 조회
       if (foundUid) {
         // 일정 확인 날짜
-        if (scheduleData[foundUid]) {
+    if (scheduleData[foundUid]) {
           lastCheck = scheduleData[foundUid].lastCheckDate;
           console.log(`일정 확인 날짜: ${lastCheck}`);
         }
@@ -5729,29 +5861,6 @@ function openHistoryDataModal(records, project, rowData, fullscreen = false) {
   modalContent.appendChild(table);
   modal.appendChild(modalContent);
   document.body.appendChild(modal);
-}
-
-// 히스토리 데이터 모달 위에 내용 모달 표시
-function openContentModalOverHistory(text) {
-  const htmlText = convertMarkdownToHTML(text);
-  const contentModal = document.getElementById('contentModal');
-  const contentText = document.getElementById('contentText');
-  
-  contentText.innerHTML = htmlText;
-  
-  // 모달 표시
-  contentModal.style.display = 'block';
-  contentModal.style.zIndex = '10020'; // 히스토리 모달(10002)보다 높게
-  
-  // 모달 컨텐츠도 z-index 설정
-  const modalContent = contentModal.querySelector('.modal-content');
-  if (modalContent) {
-    modalContent.style.zIndex = '10021';
-    modalContent.style.position = 'relative';
-  }
-  
-  // 배경을 더 진하게 해서 구분 명확히
-  contentModal.style.background = 'rgba(0, 0, 0, 0.8)';
 }
 
 // 히스토리 데이터 모달 전체화면 토글 함수
