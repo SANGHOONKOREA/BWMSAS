@@ -38,6 +38,8 @@
   padding: 0; 
 }
 
+
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans KR", sans-serif;
   font-size: var(--font-size-base);
@@ -3220,6 +3222,51 @@ img, video {
   text-decoration-style: dotted;
   transform: scale(1.02);
   transition: all 0.2s ease;
+}
+/* 히스토리 테이블 클릭 가능한 셀 스타일 수정 */
+.history-clickable-cell {
+  cursor: pointer !important;
+  background-color: #f8f9fa !important;
+  color: #007bff !important;
+  text-decoration: underline !important;
+  transition: all 0.2s ease !important;
+}
+
+.history-clickable-cell:hover {
+  cursor: pointer !important;
+  background-color: #e3f2fd !important;
+  color: #0056b3 !important;
+  transform: scale(1.02) !important;
+}
+
+/* AI 요약 내용 표시 영역 스타일 */
+#historyDataModal .ai-summary-content {
+  background: #e8f5e8;
+  border: 1px solid #28a745;
+  border-radius: 4px;
+  padding: 6px;
+  margin-bottom: 4px;
+  font-size: 0.75em;
+  max-height: 80px;
+  overflow-y: auto;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+#historyDataModal .ai-summary-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+#historyDataModal .ai-summary-content::-webkit-scrollbar-thumb {
+  background: #28a745;
+  border-radius: 2px;
+}
+
+/* AI 요약 열 너비 조정 */
+#historyDataModal table td:first-child {
+  min-width: 300px;
+  max-width: 400px;
+  vertical-align: top;
 }
 
 /* =================================
