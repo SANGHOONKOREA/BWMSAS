@@ -16,6 +16,8 @@
   <!-- XLSX (SheetJS) for Excel -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
 
+  <!-- Marked.js (마크다운 파서) -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
 <!-- 로그인 모달 (수정된 버전 - 중복 제거) -->
@@ -162,42 +164,42 @@
   <div class="filters">
     <div class="filter-group">
       <label>IMO NO.</label>
-      <input type="text" id="filterIMO" oninput="renderTable()">
+      <input type="text" id="filterIMO" oninput="applyFilters()">
     </div>
     <div class="filter-group">
       <label>HULL NO.</label>
-      <input type="text" id="filterHull" oninput="renderTable()">
+      <input type="text" id="filterHull" oninput="applyFilters()">
     </div>
     <div class="filter-group">
       <label>SHIPNAME</label>
-      <input type="text" id="filterName" oninput="renderTable()">
+      <input type="text" id="filterName" oninput="applyFilters()">
     </div>
     <div class="filter-group">
       <label>SHIPOWNER</label>
-      <input type="text" id="filterOwner" oninput="renderTable()">
+      <input type="text" id="filterOwner" oninput="applyFilters()">
     </div>
     <div class="filter-group">
       <label>주요선사</label>
-      <input type="text" id="filterMajor" oninput="renderTable()">
+      <input type="text" id="filterMajor" oninput="applyFilters()">
     </div>
     <!-- 호선 대표메일 필터 추가 -->
     <div class="filter-group">
       <label>호선 대표메일</label>
-      <input type="text" id="filterRepMail" oninput="renderTable()">
+      <input type="text" id="filterRepMail" oninput="applyFilters()">
     </div>
     <!-- Ship Type 필터 추가 -->
     <div class="filter-group">
       <label>SHIP TYPE</label>
-      <input type="text" id="filterShipType" oninput="renderTable()">
+      <input type="text" id="filterShipType" oninput="applyFilters()">
     </div>
     <!-- Shipyard 필터 추가 -->
     <div class="filter-group">
       <label>SHIPYARD</label>
-      <input type="text" id="filterShipyard" oninput="renderTable()">
+      <input type="text" id="filterShipyard" oninput="applyFilters()">
     </div>
     <div class="filter-group">
       <label>그룹</label>
-      <select id="filterGroup" onchange="renderTable()">
+      <select id="filterGroup" onchange="applyFilters()">
         <option value="">전체</option>
         <option value="1">1</option><option value="2">2</option>
         <option value="3">3</option><option value="4">4</option>
@@ -206,7 +208,7 @@
     </div>
     <div class="filter-group">
       <label>AS 구분</label>
-      <select id="filterAsType" onchange="renderTable()">
+      <select id="filterAsType" onchange="applyFilters()">
         <option value="">전체</option>
         <option value="무상">무상</option>
         <option value="유상">유상</option>
@@ -215,11 +217,11 @@
     </div>
     <div class="filter-group">
       <label>현 담당</label>
-      <input type="text" id="filterManager" oninput="renderTable()">
+      <input type="text" id="filterManager" oninput="applyFilters()">
     </div>
     <div class="filter-group">
       <label>동작여부</label>
-      <select id="filterActive" onchange="renderTable()">
+      <select id="filterActive" onchange="applyFilters()">
         <option value="">전체</option>
         <option value="정상">정상</option>
         <option value="부분동작">부분동작</option>
