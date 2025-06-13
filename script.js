@@ -2582,7 +2582,7 @@ function createDataCell(row, field) {
     const inp = document.createElement('input');
     inp.type = 'text';
     inp.value = value;
-    inp.style.width = '75%';
+    inp.style.width = '60%';
     inp.dataset.uid = row.uid;
     inp.dataset.field = field;
     inp.addEventListener('change', onCellChange);
@@ -2599,6 +2599,19 @@ function createDataCell(row, field) {
       }
     });
     td.appendChild(linkIcon);
+
+    const pdfIcon = document.createElement('span');
+    pdfIcon.textContent = ' 📄';
+    pdfIcon.style.cursor = 'pointer';
+    pdfIcon.title = 'PDF 도면 열기';
+    pdfIcon.style.marginLeft = '5px';
+    pdfIcon.addEventListener('click', () => {
+      const imoVal = inp.value.trim();
+      if (imoVal) {
+        openPdfDrawing(imoVal);
+      }
+    });
+    td.appendChild(pdfIcon);
   } else if (['조치계획', '접수내용', '조치결과'].includes(field)) {
     const inp = document.createElement('input');
     inp.type = 'text';
@@ -2649,6 +2662,169 @@ function createDataCell(row, field) {
   
   return td;
 }
+
+/** ==================================
+ *  PDF 파일 열기 기능 - 파일 탐색기에서 열기
+ * ===================================*/
+function openPdfDrawing(imoNo) {
+  if (!imoNo) {
+    alert('IMO 번호가 없습니다.');
+    return;
+  }
+  
+  // 서버 경로 설정
+  const serverPath = '\\\\10.101.10.20\\32.고객관리\\CS_박용\\9.개인폴더\\이제창\\FINAL DRAWING';
+  const fileName = `${imoNo}.pdf`;
+  const fullPath = `${serverPath}\\${fileName}`;
+  
+  // 바로 파일 탐색기로 폴더 열기 시도
+  openFolderInExplorer();
+  
+function openFolderInExplorer() {
+  try {
+    // 폴더 경로와 파일명을 함께 복사 (전체 경로)
+    copyToClipboard(fullPath);
+    
+    // 파일명도 별도로 저장
+    sessionStorage.setItem('pdfFileName', fileName);
+    
+    // 안내 모달 표시
+    showExplorerInstructions(serverPath, fileName, fullPath);
+    
+  } catch (e) {
+    console.error('폴더 열기 실패:', e);
+    // 실패 시에도 전체 경로 복사
+    copyToClipboard(fullPath);
+    showDetailedInstructions(fullPath);
+  }
+}
+  
+  // 파일 탐색기 안내 모달
+function showExplorerInstructions(folderPath, fileName, fullPath) {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    `;
+    
+    const content = document.createElement('div');
+    content.style.cssText = `
+      background: white;
+      padding: 35px;
+      border-radius: 12px;
+      max-width: 600px;
+      box-shadow: 0 15px 50px rgba(0, 0, 0, 0.4);
+      animation: modalSlideIn 0.3s ease-out;
+    `;
+    
+    
+    const confirmBtn = document.createElement('button');
+    confirmBtn.textContent = '확인';
+    confirmBtn.style.cssText = `
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 30px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9em;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    `;
+    confirmBtn.onclick = function() {
+      modal.remove();
+    };
+    
+    content.innerHTML = `
+      <h3 style="margin-top:0; color:#28a745; font-size:1.5em;">📁 파일 탐색기에서 PDF 파일 열기</h3>
+      
+      <div style="background:#f0f8ff; padding:20px; border-radius:8px; margin:20px 0; border-left:4px solid #007bff;">
+<p style="font-size:1.1em; margin:0 0 15px 0; font-weight:600;">
+  전체 파일 경로가 클립보드에 복사되었습니다!
+        </p>
+        <p style="margin:0; line-height:1.8;">
+          1. <kbd style="background:#e0e0e0; padding:3px 8px; border-radius:3px; font-size:0.9em;">Win</kbd> + 
+             <kbd style="background:#e0e0e0; padding:3px 8px; border-radius:3px; font-size:0.9em;">E</kbd> 키를 눌러 파일 탐색기를 엽니다<br>
+          2. 주소창을 클릭하고 <kbd style="background:#e0e0e0; padding:3px 8px; border-radius:3px; font-size:0.9em;">Ctrl</kbd> + 
+             <kbd style="background:#e0e0e0; padding:3px 8px; border-radius:3px; font-size:0.9em;">V</kbd>로 붙여넣기<br>
+          3. <kbd style="background:#e0e0e0; padding:3px 8px; border-radius:3px; font-size:0.9em;">Enter</kbd> 키를 누릅니다<br>
+4. 붙여넣기한 파일을 바로 열 수 있습니다
+        </p>
+      </div>
+      
+      <div style="background:#f8f9fa; padding:15px; border-radius:6px; margin-bottom:20px;">
+        <p style="margin:0; font-size:0.9em; color:#666;">
+          <strong>폴더 경로:</strong><br>
+          <code style="background:#fff; padding:8px; display:block; margin-top:5px; border:1px solid #ddd; border-radius:4px; font-size:0.85em; word-break:break-all;">
+            ${folderPath}
+          </code>
+        </p>
+      </div>
+      
+      <div style="display:flex; gap:10px; justify-content:center;">
+      </div>
+    `;
+    
+const buttonContainer = content.querySelector('div:last-child');
+buttonContainer.appendChild(confirmBtn);
+    
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    // 모달 외부 클릭으로 닫기
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+    
+    // ESC 키로 닫기
+    const escHandler = (e) => {
+      if (e.key === 'Escape') {
+        modal.remove();
+        document.removeEventListener('keydown', escHandler);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+  }
+}
+
+// 클립보드 복사 함수
+async function copyToClipboard(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand('copy');
+      textArea.remove();
+      return successful;
+    }
+  } catch (err) {
+    console.error('클립보드 복사 실패:', err);
+    return false;
+  }
+}
+
+// window 객체에 등록
+window.copyToClipboard = copyToClipboard;
 
 // 단일 선박 데이터 반영
 async function fetchAndUpdateVesselData(uid) {
