@@ -55,6 +55,32 @@ body {
   display: none !important; 
 }
 
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+kbd {
+  display: inline-block;
+  margin: 0 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-50px) scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
 /* =================================
    로그인 모달 스타일
    ================================= */
@@ -3267,6 +3293,49 @@ img, video {
   min-width: 300px;
   max-width: 400px;
   vertical-align: top;
+}
+
+/* IMO 필드 아이콘 스타일 */
+td[data-field="imo"] span {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 1.1em;
+  transition: all 0.2s ease;
+}
+
+td[data-field="imo"] span:hover {
+  transform: scale(1.2);
+  filter: brightness(1.2);
+}
+
+td[data-field="imo"] span[title="PDF 도면 열기"] {
+  color: #dc3545;
+}
+
+td[data-field="imo"] span[title="PDF 도면 열기"]:hover {
+  color: #c82333;
+  text-shadow: 0 0 4px rgba(220, 53, 69, 0.5);
+}
+
+td[data-field="imo"] span[title="새 창에서 조회"] {
+  color: #007bff;
+}
+
+td[data-field="imo"] span[title="새 창에서 조회"]:hover {
+  color: #0056b3;
+  text-shadow: 0 0 4px rgba(0, 123, 255, 0.5);
+}
+
+/* 특별한 버튼 색상 - 더 명확한 구분 */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
 }
 
 /* =================================
