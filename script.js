@@ -2210,7 +2210,7 @@ function addNewRow() {
 }
 
 // 선택 행 삭제
-function deleteSelectedRows() {
+async function deleteSelectedRows() {
   const cks = document.querySelectorAll('.rowSelectChk:checked');
   if (!cks.length) {
     alert("삭제할 행을 선택하세요.");
@@ -2220,14 +2220,44 @@ function deleteSelectedRows() {
   
   const uidsToDelete = Array.from(cks).map(chk => chk.dataset.uid);
   
-  asData = asData.filter(x => !uidsToDelete.includes(x.uid));
-  
-  document.getElementById('selectAll').checked = false;
-  
-  // 현재 필터 상태에 따라 다시 표시
-  if (filteredData.length > 0) {
-    filteredData = filteredData.filter(x => !uidsToDelete.includes(x.uid));
+  try {
+    // Firebase에서 삭제할 항목들을 null로 설정
+    const updates = {};
+    uidsToDelete.forEach(uid => {
+      updates[`${asPath}/${uid}`] = null;
+    });
+    
+    // Firebase에 삭제 반영
+    await db.ref().update(updates);
+    
+    // 로컬 데이터에서도 삭제
+    asData = asData.filter(x => !uidsToDelete.includes(x.uid));
+    
+    // 필터링된 데이터에서도 삭제
+    if (filteredData.length > 0) {
+      filteredData = filteredData.filter(x => !uidsToDelete.includes(x.uid));
+    }
+    
+    // 체크박스 초기화
+    document.getElementById('selectAll').checked = false;
+    
+    // 테이블 업데이트
     updateTable();
+    
+    // 사이드바 업데이트
+    updateSidebarList();
+    
+    // 히스토리 추가
+    addHistory(`${uidsToDelete.length}개 항목 삭제`);
+    
+    alert(`${uidsToDelete.length}개 항목이 삭제되었습니다.`);
+    
+  } catch (error) {
+    console.error("삭제 중 오류 발생:", error);
+    alert("삭제 중 오류가 발생했습니다: " + error.message);
+    
+    // 오류 발생 시 데이터 다시 로드
+    loadData();
   }
 }
 
