@@ -532,7 +532,7 @@ function registerEventListeners() {
   // 일정 확인 버튼 추가
   const scheduleCheckBtn = document.createElement('button');
   scheduleCheckBtn.id = 'scheduleCheckBtn';
-  scheduleCheckBtn.textContent = '일정 확인';
+  scheduleCheckBtn.textContent = '담당자 확인';
   scheduleCheckBtn.style.cssText = 'background:#17a2b8; color:#fff; margin-left:10px;';
   scheduleCheckBtn.addEventListener('click', confirmCurrentUserSchedule);
   
