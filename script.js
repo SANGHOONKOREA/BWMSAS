@@ -630,6 +630,9 @@ function registerEventListeners() {
   setupElapsedDayFilters();
 }
 
+// 동작여부 상태 카드 클릭 이벤트 리스너 추가
+setupOperationStatusFilters();
+
 // 개선된 필터 이벤트 리스너 설정
 function setupFilterEventListeners() {
   const filterInputs = [
@@ -659,6 +662,41 @@ function setupFilterEventListeners() {
   });
 }
 
+// 동작여부 상태 필터 설정
+function setupOperationStatusFilters() {
+  // 정상 카드 클릭
+  document.getElementById('count정상').parentElement.addEventListener('click', () => {
+    filterByOperationStatus('정상');
+  });
+  
+  // 부분동작 카드 클릭
+  document.getElementById('count부분동작').parentElement.addEventListener('click', () => {
+    filterByOperationStatus('부분동작');
+  });
+  
+  // 동작불가 카드 클릭
+  document.getElementById('count동작불가').parentElement.addEventListener('click', () => {
+    filterByOperationStatus('동작불가');
+  });
+}
+
+// 동작여부별 필터링
+function filterByOperationStatus(status) {
+  // 현재 선택된 동작여부와 같으면 해제, 다르면 적용
+  const currentStatus = document.getElementById('filterActive').value;
+  
+  if (currentStatus === status) {
+    // 같은 상태를 다시 클릭하면 필터 해제
+    document.getElementById('filterActive').value = '';
+  } else {
+    // 다른 상태를 클릭하면 해당 상태로 필터 설정
+    document.getElementById('filterActive').value = status;
+  }
+  
+  // 필터 적용 (기존 필터 조건 유지)
+  applyFilters();
+}
+
 // 필터 변경 핸들러 - 디바운스 적용
 function handleFilterChange() {
   if (filterDebounceTimer) {
@@ -670,6 +708,7 @@ function handleFilterChange() {
   }, 300); // 300ms 디바운스
 }
 
+// applyFilters 함수 수정 - 경과일 필터 추가
 function applyFilters() {
   if (!dataLoaded || asData.length === 0) {
     console.log('데이터가 아직 로드되지 않았습니다.');
@@ -692,8 +731,11 @@ function applyFilters() {
     shipyard: document.getElementById('filterShipyard').value.toLowerCase().trim()
   };
   
-  // 모든 필터가 비어있는지 확인
-  const hasActiveFilter = Object.values(filters).some(val => val !== '');
+  // 경과일 필터 추가
+  const elapsedDayFilter = window.elapsedDayFilter || null;
+  
+  // 모든 필터가 비어있는지 확인 (경과일 필터 포함)
+  const hasActiveFilter = Object.values(filters).some(val => val !== '') || elapsedDayFilter !== null;
   
   if (!hasActiveFilter) {
     // 필터가 없으면 빈 화면 표시
@@ -711,68 +753,69 @@ function applyFilters() {
     const hasValidData = row.공번 || row.imo || row.hull || row.shipName || row.manager || row.shipowner;
     if (!hasValidData) return false;
     
-    // 이하 기존 필터 로직...
-    // IMO 필터
+    // 경과일 필터 적용
+    if (elapsedDayFilter !== null) {
+      if (row["기술적종료일"]) return false;
+      if (!row["AS접수일자"]) return false;
+      
+      const today = new Date();
+      const asDate = new Date(row["AS접수일자"] + "T00:00");
+      if (isNaN(asDate.getTime())) return false;
+      
+      const diffDays = Math.floor((today - asDate) / (1000 * 3600 * 24));
+      if (diffDays < elapsedDayFilter) return false;
+    }
+    
+    // 기존 필터들 적용
     if (filters.imo && !String(row.imo || '').toLowerCase().includes(filters.imo)) {
       return false;
     }
     
-    // HULL 필터
     if (filters.hull && !String(row.hull || '').toLowerCase().includes(filters.hull)) {
       return false;
     }
     
-    // SHIPNAME 필터
     if (filters.name && !String(row.shipName || '').toLowerCase().includes(filters.name)) {
       return false;
     }
     
-    // SHIPOWNER 필터
     if (filters.owner && !String(row.shipowner || '').toLowerCase().includes(filters.owner)) {
       return false;
     }
     
-    // 주요선사 필터
     if (filters.major && !String(row.major || '').toLowerCase().includes(filters.major)) {
       return false;
     }
     
-    // 호선 대표메일 필터
     if (filters.repMail && !String(row.repMail || '').toLowerCase().includes(filters.repMail)) {
       return false;
     }
     
-    // 그룹 필터
     if (filters.group && String(row.group || '') !== filters.group) {
       return false;
     }
     
-    // AS 구분 필터
     if (filters.asType && row.asType !== filters.asType) {
       return false;
     }
     
-    // 현 담당 필터
     if (filters.manager && !String(row.manager || '').toLowerCase().includes(filters.manager)) {
       return false;
     }
     
-    // 동작여부 필터
     if (filters.active && row.동작여부 !== filters.active) {
       return false;
     }
     
-    // SHIP TYPE 필터
     if (filters.shipType && !String(row.shipType || '').toLowerCase().includes(filters.shipType)) {
       return false;
     }
     
-    // SHIPYARD 필터
     if (filters.shipyard && !String(row.shipyard || '').toLowerCase().includes(filters.shipyard)) {
       return false;
     }
     
-   return true;
+    return true;
   });
   
   console.log(`필터링 결과: ${filteredData.length}개`);
@@ -883,7 +926,7 @@ function loadAllData() {
   updateTable();
 }
 
-// 모든 필터 초기화
+// 전체조회 버튼 함수도 수정
 function clearAllFilters() {
   document.getElementById('filterIMO').value = '';
   document.getElementById('filterHull').value = '';
@@ -897,6 +940,9 @@ function clearAllFilters() {
   document.getElementById('filterActive').value = '';
   document.getElementById('filterShipType').value = '';
   document.getElementById('filterShipyard').value = '';
+  
+  // 경과일 필터도 초기화
+  window.elapsedDayFilter = null;
 }
 
 // 관리자 비밀번호 로드
@@ -959,21 +1005,21 @@ function setupElapsedDayFilters() {
 
 // 경과일별 필터링
 function filterByElapsedDays(days) {
-  clearAllFilters();
+  // 경과일 필터 상태 관리를 위한 전역 변수 추가
+  if (!window.elapsedDayFilter) {
+    window.elapsedDayFilter = null;
+  }
   
-  const today = new Date();
-  filteredData = asData.filter(row => {
-    if (row["기술적종료일"]) return false;
-    if (!row["AS접수일자"]) return false;
-    
-    const asDate = new Date(row["AS접수일자"] + "T00:00");
-    if (isNaN(asDate.getTime())) return false;
-    
-    const diffDays = Math.floor((today - asDate) / (1000 * 3600 * 24));
-    return diffDays >= days;
-  });
+  // 같은 경과일을 다시 클릭하면 해제
+  if (window.elapsedDayFilter === days) {
+    window.elapsedDayFilter = null;
+    applyFilters();
+    return;
+  }
   
-  updateTable();
+  // 새로운 경과일 필터 설정
+  window.elapsedDayFilter = days;
+  applyFilters();
 }
 
 // 테이블 헤더 렌더링
@@ -2299,14 +2345,31 @@ function handleTableClick(e) {
   }
 }
 
-// 상태 카운트 업데이트
+// 상태 카드 업데이트 시 선택 상태 표시
 function updateStatusCounts(counts) {
   document.getElementById('count정상').textContent = counts.정상 || 0;
   document.getElementById('count부분동작').textContent = counts.부분동작 || 0;
   document.getElementById('count동작불가').textContent = counts.동작불가 || 0;
+  
+  // 현재 선택된 동작여부 하이라이트
+  const currentStatus = document.getElementById('filterActive').value;
+  document.querySelectorAll('.status-card').forEach((card, index) => {
+    if (index < 3) { // 처음 3개가 동작여부 카드
+      card.classList.remove('active-filter');
+    }
+  });
+  
+  if (currentStatus === '정상') {
+    document.getElementById('count정상').parentElement.classList.add('active-filter');
+  } else if (currentStatus === '부분동작') {
+    document.getElementById('count부분동작').parentElement.classList.add('active-filter');
+  } else if (currentStatus === '동작불가') {
+    document.getElementById('count동작불가').parentElement.classList.add('active-filter');
+  }
 }
 
-// 경과일 카운트 업데이트
+
+// 경과일 카운트 업데이트 시 선택 상태 표시
 function updateElapsedDayCounts() {
   const today = new Date();
   let count30Days = 0, count60Days = 0, count90Days = 0;
@@ -2330,8 +2393,20 @@ function updateElapsedDayCounts() {
   document.getElementById('count30Days').textContent = count30Days;
   document.getElementById('count60Days').textContent = count60Days;
   document.getElementById('count90Days').textContent = count90Days;
+  
+  // 현재 선택된 경과일 하이라이트
+  document.querySelectorAll('.elapsed-card').forEach(card => {
+    card.classList.remove('active-filter');
+  });
+  
+  if (window.elapsedDayFilter === 30) {
+    document.getElementById('count30Days').parentElement.classList.add('active-filter');
+  } else if (window.elapsedDayFilter === 60) {
+    document.getElementById('count60Days').parentElement.classList.add('active-filter');
+  } else if (window.elapsedDayFilter === 90) {
+    document.getElementById('count90Days').parentElement.classList.add('active-filter');
+  }
 }
-
 // 테이블 행 생성
 // 테이블 행 생성
 function createTableRow(row) {
@@ -3565,19 +3640,52 @@ function readExcelFile(file, mode) {
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet, {defval: ""});
         
+        // 수정 전: 기존 데이터의 API 정보를 보존하기 위한 맵 생성
+        const existingApiData = {};
+        asData.forEach(row => {
+          if (row.imo) {
+            existingApiData[row.imo] = {
+              api_name: row.api_name || '',
+              api_owner: row.api_owner || '',
+              api_manager: row.api_manager || ''
+            };
+          }
+        });
+        
         let newData = json.map(r => {
           const uid = db.ref().push().key;
           const now = new Date().toISOString().split('T')[0];
+          const imoValue = parseCell(r['IMO']);
+          
+          // 수정 후: 기존 API 데이터가 있으면 보존, 없으면 엑셀 데이터 사용
+          let apiData = {
+            api_name: '',
+            api_owner: '',
+            api_manager: ''
+          };
+          
+          if (imoValue && existingApiData[imoValue]) {
+            // 기존 API 데이터 사용
+            apiData = existingApiData[imoValue];
+          } else if (r['API_NAME'] || r['API_OWNER'] || r['API_MANAGER']) {
+            // 엑셀에 API 데이터가 있으면 사용
+            apiData = {
+              api_name: parseCell(r['API_NAME']),
+              api_owner: parseCell(r['API_OWNER']),
+              api_manager: parseCell(r['API_MANAGER'])
+            };
+          }
+          
           return {
             uid,
             공번: parseCell(r['공번']),
             공사: parseCell(r['공사']),
-            imo: parseCell(r['IMO']),
+            imo: imoValue,
             hull: parseCell(r['HULL']),
             shipName: parseCell(r['SHIPNAME']),
-            api_name: parseCell(r['API_NAME']),
-            api_owner: parseCell(r['API_OWNER']),
-            api_manager: parseCell(r['API_MANAGER']),
+            api_name: apiData.api_name,        // 보존된 API 데이터 사용
+            api_owner: apiData.api_owner,      // 보존된 API 데이터 사용
+            api_manager: apiData.api_manager,  // 보존된 API 데이터 사용
             repMail: parseCell(r['호선 대표메일']),
             shipType: parseCell(r['SHIP TYPE']),
             scale: parseCell(r['SCALE']),
@@ -3619,7 +3727,7 @@ function readExcelFile(file, mode) {
                 clearAllFilters();
                 loadAllData();
                 document.body.removeChild(loadingEl);
-                alert(`엑셀 업로드(교체) 완료 (총 ${json.length}건)`);
+                alert(`엑셀 업로드(교체) 완료 (총 ${json.length}건)\nAPI 정보는 기존 데이터가 보존되었습니다.`);
               })
               .catch(err => {
                 console.error("엑셀 업로드 오류:", err);
@@ -3628,8 +3736,16 @@ function readExcelFile(file, mode) {
               });
           });
         } else {
+          // 추가 모드에서도 기존 데이터의 API 정보 확인
           const updates = {};
           newData.forEach(obj => {
+            // 추가하려는 데이터의 IMO가 이미 존재하는 경우 API 정보 보존
+            const existingRow = asData.find(row => row.imo === obj.imo);
+            if (existingRow && existingRow.api_name) {
+              obj.api_name = existingRow.api_name;
+              obj.api_owner = existingRow.api_owner;
+              obj.api_manager = existingRow.api_manager;
+            }
             updates[obj.uid] = obj;
           });
           
@@ -3639,7 +3755,7 @@ function readExcelFile(file, mode) {
               clearAllFilters();
               loadAllData();
               document.body.removeChild(loadingEl);
-              alert(`엑셀 업로드(추가) 완료 (총 ${json.length}건)`);
+              alert(`엑셀 업로드(추가) 완료 (총 ${json.length}건)\nAPI 정보는 기존 데이터가 보존되었습니다.`);
             })
             .catch(err => {
               console.error("엑셀 업로드 오류:", err);
