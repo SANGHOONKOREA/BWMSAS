@@ -89,8 +89,8 @@ let g_apiConfig = {
 
 // 기본 테이블 열 정의
 const basicColumns = [
-  'checkbox', '공번', '공사', 'imo', 'hull', 'shipName', 'repMail', 'shipType', 
-  'shipowner', 'group', 'shipyard', 'contract', 'asType', 'delivery', 'warranty', 
+  'checkbox', '공번', '공사', 'imo', 'hull', 'shipName', 'shipowner', 'repMail', 'shipType', 
+  'group', 'shipyard', 'contract', 'asType', 'delivery', 'warranty', 
   'manager', '현황', '현황번역', '동작여부', 'history', 'AS접수일자', '기술적종료일', 
   '경과일', '정상지연', '지연 사유', '수정일'
 ];
@@ -98,7 +98,7 @@ const basicColumns = [
 // 모든 테이블 열 정의
 const allColumns = [
   'checkbox', '공번', '공사', 'imo', 'api_name', 'api_owner', 'api_manager', 'api_apply',
-  'hull', 'shipName', 'repMail', 'shipType', 'scale', '구분', 'shipowner', 'major', 
+  'hull', 'shipName', 'shipowner', 'repMail', 'shipType', 'scale', '구분', 'major', 
   'group', 'shipyard', 'contract', 'asType', 'delivery', 'warranty', 'prevManager', 
   'manager', '현황', '현황번역', 'ai_summary', '동작여부', '조치계획', '접수내용', 
   '조치결과', 'history', 'AS접수일자', '기술적종료일', '경과일', '정상지연', '지연 사유', '수정일'
@@ -3040,26 +3040,52 @@ async function refreshAllVessels() {
   clearApiProgressText();
   updateApiProgressText(`전체 ${vesselsWithImo.length}개 선박 데이터 업데이트 시작...`);
   
+  // 크레딧 확인은 동일한 CORS 프록시 사용
   try {
-    const corsProxy = "https://corsproxy.io/?";
+    const corsProxy = "https://api.allorigins.win/raw?url=";
     const statusUrl = `${corsProxy}${encodeURIComponent(`https://api.vesselfinder.com/status?userkey=${g_apiConfig.apiKey}`)}`;
     
-    const statusResponse = await fetch(statusUrl);
-    const statusData = await statusResponse.json();
+    const statusResponse = await fetch(statusUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    const statusText = await statusResponse.text();
     
-    if (statusData.STATUS && statusData.STATUS.CREDITS) {
-      const credits = parseInt(statusData.STATUS.CREDITS, 10);
-      const neededCredits = vesselsWithImo.length * 3;
+    let statusData;
+    try {
+      statusData = JSON.parse(statusText);
+    } catch (e) {
+      console.error("Status JSON 파싱 오류:", e);
+      updateApiProgressText(`\n크레딧 확인 중 파싱 오류: ${e.message}`);
+    }
+    
+    if (statusData) {
+      // 다양한 응답 형식 처리
+      let credits = null;
       
-      updateApiProgressText(`\n사용 가능 크레딧: ${credits}`);
-      updateApiProgressText(`\n필요 크레딧: ${neededCredits} (${vesselsWithImo.length}개 선박 × 3)`);
+      if (statusData.CREDITS !== undefined) {
+        credits = parseInt(statusData.CREDITS, 10);
+      } else if (Array.isArray(statusData) && statusData[0] && statusData[0].CREDITS !== undefined) {
+        credits = parseInt(statusData[0].CREDITS, 10);
+      } else if (statusData.STATUS && statusData.STATUS.CREDITS) {
+        credits = parseInt(statusData.STATUS.CREDITS, 10);
+      }
       
-      if (credits < neededCredits) {
-        updateApiProgressText(`\n⚠️ 경고: 크레딧이 부족합니다. 일부 선박만 업데이트될 수 있습니다.`);
+      if (credits !== null) {
+        const neededCredits = vesselsWithImo.length * 3;
         
-        if (!confirm("크레딧이 부족합니다. 계속 진행하시겠습니까?")) {
-          closeApiProgressModal();
-          return;
+        updateApiProgressText(`\n사용 가능 크레딧: ${credits}`);
+        updateApiProgressText(`\n필요 크레딧: ${neededCredits} (${vesselsWithImo.length}개 선박 × 3)`);
+        
+        if (credits < neededCredits) {
+          updateApiProgressText(`\n⚠️ 경고: 크레딧이 부족합니다. 일부 선박만 업데이트될 수 있습니다.`);
+          
+          if (!confirm("크레딧이 부족합니다. 계속 진행하시겠습니까?")) {
+            closeApiProgressModal();
+            return;
+          }
         }
       }
     }
@@ -3075,82 +3101,148 @@ async function refreshAllVessels() {
   
   let successCount = 0;
   let errorCount = 0;
+  let retryCount = 0;
+  const maxRetries = 3;
   
   const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
   
-  for (let i = 0; i < vesselsWithImo.length; i++) {
-    const row = vesselsWithImo[i];
-    const imoNumber = row.imo.trim();
+  // 배치 처리를 위한 설정
+  const batchSize = 5; // 동시에 처리할 요청 수
+  const batchDelay = 2000; // 배치 간 대기 시간 (2초)
+  
+  // 배치 단위로 처리
+  for (let batchStart = 0; batchStart < vesselsWithImo.length; batchStart += batchSize) {
+    const batchEnd = Math.min(batchStart + batchSize, vesselsWithImo.length);
+    const batch = vesselsWithImo.slice(batchStart, batchEnd);
     
-    updateApiProgressText(`\n[${i+1}/${vesselsWithImo.length}] IMO ${imoNumber} 처리 중...`);
+    updateApiProgressText(`\n\n배치 ${Math.floor(batchStart/batchSize) + 1}/${Math.ceil(vesselsWithImo.length/batchSize)} 처리 중...`);
     
-    try {
-      const corsProxy = "https://api.allorigins.win/raw?url=";
-      const targetUrl = `${g_apiConfig.baseUrl}?userkey=${g_apiConfig.apiKey}&imo=${imoNumber}`;
-      const apiUrl = `${corsProxy}${encodeURIComponent(targetUrl)}`;
+    // 배치 내의 요청들을 순차적으로 처리
+    for (let i = 0; i < batch.length; i++) {
+      const row = batch[i];
+      const imoNumber = row.imo.trim();
+      const globalIndex = batchStart + i + 1;
       
-      const response = await fetch(apiUrl);
-      const responseText = await response.text();
+      updateApiProgressText(`\n[${globalIndex}/${vesselsWithImo.length}] IMO ${imoNumber} 처리 중...`);
       
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        updateApiProgressText(`\n  JSON 파싱 오류: ${e.message}`);
-        errorCount++;
-        continue;
-      }
+      let attemptCount = 0;
+      let success = false;
       
-      if (Array.isArray(data)) {
-        if (data.length === 0) {
-          updateApiProgressText(`\n  응답 배열이 비어 있습니다.`);
-          errorCount++;
-          continue;
+      // 재시도 로직
+      while (attemptCount < maxRetries && !success) {
+        try {
+          attemptCount++;
+          
+          const corsProxy = "https://api.allorigins.win/raw?url=";
+          const targetUrl = `${g_apiConfig.baseUrl}?userkey=${g_apiConfig.apiKey}&imo=${imoNumber}`;
+          const apiUrl = `${corsProxy}${encodeURIComponent(targetUrl)}`;
+          
+          // 타임아웃 설정
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+          
+          const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json'
+            },
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          const responseText = await response.text();
+          
+          let data;
+          try {
+            data = JSON.parse(responseText);
+          } catch (e) {
+            updateApiProgressText(`\n  JSON 파싱 오류 (시도 ${attemptCount}/${maxRetries}): ${e.message}`);
+            if (attemptCount < maxRetries) {
+              await delay(1000); // 재시도 전 1초 대기
+              continue;
+            }
+            errorCount++;
+            break;
+          }
+          
+          if (Array.isArray(data)) {
+            if (data.length === 0) {
+              updateApiProgressText(`\n  응답 배열이 비어 있습니다.`);
+              errorCount++;
+              break;
+            }
+            data = data[0];
+          }
+          
+          if (data.error) {
+            updateApiProgressText(`\n  API 오류: ${data.error}`);
+            errorCount++;
+            break;
+          }
+          
+          if (!data.MASTERDATA) {
+            updateApiProgressText(`\n  MASTERDATA 필드가 없습니다.`);
+            errorCount++;
+            break;
+          }
+          
+          const vesselData = data.MASTERDATA;
+          
+          const api_name = vesselData.NAME || '';
+          const api_owner = vesselData.OWNER || '';
+          const api_manager = vesselData.MANAGER || '';
+          
+          row.api_name = api_name;
+          row.api_owner = api_owner;
+          row.api_manager = api_manager;
+          row["수정일"] = new Date().toISOString().split('T')[0];
+          
+          modifiedRows.add(row.uid);
+          
+          updateApiProgressText(`\n  ✓ 성공: ${api_name} (${api_owner})`);
+          successCount++;
+          success = true;
+          
+        } catch (error) {
+          if (error.name === 'AbortError') {
+            updateApiProgressText(`\n  타임아웃 (시도 ${attemptCount}/${maxRetries})`);
+          } else {
+            updateApiProgressText(`\n  오류 (시도 ${attemptCount}/${maxRetries}): ${error.message}`);
+          }
+          
+          if (attemptCount < maxRetries) {
+            retryCount++;
+            await delay(2000); // 재시도 전 2초 대기
+          } else {
+            console.error(`IMO ${imoNumber} 최종 실패:`, error);
+            errorCount++;
+          }
         }
-        data = data[0];
       }
       
-      if (data.error) {
-        updateApiProgressText(`\n  오류: ${data.error}`);
-        errorCount++;
-        continue;
-      }
-      
-      if (!data.MASTERDATA) {
-        updateApiProgressText(`\n  MASTERDATA 필드가 없습니다.`);
-        errorCount++;
-        continue;
-      }
-      
-      const vesselData = data.MASTERDATA;
-      
-      const api_name = vesselData.NAME || '';
-      const api_owner = vesselData.OWNER || '';
-      const api_manager = vesselData.MANAGER || '';
-      
-      row.api_name = api_name;
-      row.api_owner = api_owner;
-      row.api_manager = api_manager;
-      row["수정일"] = new Date().toISOString().split('T')[0];
-      
-      modifiedRows.add(row.uid);
-      
-      updateApiProgressText(`\n  성공: ${api_name} (${api_owner})`);
-      successCount++;
-      
-      await delay(1000);
-      
-    } catch (error) {
-      console.error(`IMO ${imoNumber} 처리 오류:`, error);
-      updateApiProgressText(`\n  오류: ${error.message}`);
-      errorCount++;
+      // 개별 요청 간 대기
+      await delay(500);
+    }
+    
+    // 배치 간 대기 (마지막 배치 제외)
+    if (batchEnd < vesselsWithImo.length) {
+      updateApiProgressText(`\n\n다음 배치 처리 전 ${batchDelay/1000}초 대기 중...`);
+      await delay(batchDelay);
     }
   }
   
   try {
-    updateApiProgressText(`\n\n업데이트 완료: 성공 ${successCount}건, 실패 ${errorCount}건`);
+    updateApiProgressText(`\n\n=== 업데이트 완료 ===`);
+    updateApiProgressText(`\n성공: ${successCount}건`);
+    updateApiProgressText(`\n실패: ${errorCount}건`);
+    updateApiProgressText(`\n재시도: ${retryCount}회`);
     
-    addHistory(`전체 선박 API 데이터 업데이트 (성공 ${successCount}건, 실패 ${errorCount}건)`);
+    addHistory(`전체 선박 API 데이터 업데이트 (성공 ${successCount}건, 실패 ${errorCount}건, 재시도 ${retryCount}회)`);
     
     // 현재 필터 상태에 따라 테이블 업데이트
     if (filteredData.length > 0) {
@@ -3158,6 +3250,13 @@ async function refreshAllVessels() {
     }
     
     setTimeout(() => closeApiProgressModal(), 5000);
+    
+    // 완료 알림
+    if (errorCount === 0) {
+      alert(`모든 선박 데이터가 성공적으로 업데이트되었습니다.\n총 ${successCount}개 항목`);
+    } else {
+      alert(`업데이트 완료\n성공: ${successCount}개\n실패: ${errorCount}개\n\n일부 항목은 업데이트에 실패했습니다.`);
+    }
     
   } catch (error) {
     console.error("업데이트 처리 오류:", error);
@@ -3579,11 +3678,11 @@ function downloadExcel() {
   
   setTimeout(() => {
     try {
-      const arr = asData.map(d => ({
-        공번: d.공번, 공사: d.공사, IMO: d.imo, HULL: d.hull, SHIPNAME: d.shipName,
-        'API_NAME': d.api_name, 'API_OWNER': d.api_owner, 'API_MANAGER': d.api_manager,
-        '호선 대표메일': d.repMail, 'SHIP TYPE': d.shipType, SCALE: d.scale, 구분: d.구분,
-        SHIPOWNER: d.shipowner, 주요선사: d.major, 그룹: d.group, SHIPYARD: d.shipyard,
+const arr = asData.map(d => ({
+  공번: d.공번, 공사: d.공사, IMO: d.imo, HULL: d.hull, SHIPNAME: d.shipName,
+  SHIPOWNER: d.shipowner, 'API_NAME': d.api_name, 'API_OWNER': d.api_owner, 'API_MANAGER': d.api_manager,
+  '호선 대표메일': d.repMail, 'SHIP TYPE': d.shipType, SCALE: d.scale, 구분: d.구분,
+  주요선사: d.major, 그룹: d.group, SHIPYARD: d.shipyard,
         계약: d.contract, 'AS 구분': d.asType, 인도일: d.delivery, 보증종료일: d.warranty,
         '전 담당': d.prevManager, '현 담당': d.manager, 현황: d.현황, 현황번역: d.현황번역, 동작여부: d.동작여부,
         조치계획: d.조치계획, 접수내용: d.접수내용, 조치결과: d.조치결과,
