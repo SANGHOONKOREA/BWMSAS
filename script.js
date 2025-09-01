@@ -98,10 +98,11 @@ const basicColumns = [
 // 모든 테이블 열 정의
 const allColumns = [
   'checkbox', '공번', '공사', 'imo', 'api_name', 'api_owner', 'api_manager', 'api_apply',
-  'hull', 'shipName', 'shipowner', 'repMail', 'shipType', 'scale', '구분', 'major', 
-  'group', 'shipyard', 'contract', 'asType', 'delivery', 'warranty', 'prevManager', 
-  'manager', '현황', '현황번역', 'ai_summary', '동작여부', '조치계획', '접수내용', 
-  '조치결과', 'history', 'cnt2020', 'cnt2021', 'cnt2022', 'cnt2023', 'cnt2024', 'cnt2025', 'cntTotal', 'AS접수일자', '기술적종료일', '경과일', '정상지연', '지연 사유', '수정일'
+  'hull', 'shipName', 'shipowner', 'repMail', 'shipType', 'scale', '구분', 'major',
+  'group', 'shipyard', 'contract', 'asType', 'delivery', 'warranty', 'prevManager',
+  'manager', '현황', '현황번역', 'ai_summary', '동작여부', '조치계획', '접수내용',
+  '조치결과', 'history', 'cnt2020', 'cnt2021', 'cnt2022', 'cnt2023', 'cnt2024', 'cnt2025', 'cntTotal',
+  'AS접수일자', '기술적종료일', '경과일', '정상지연', '지연 사유', '수정일'
 ];
 
 // 언어별 텍스트 사전
@@ -192,14 +193,7 @@ const translations = {
     "API 데이터 가져오기": "API 데이터 가져오기",
     "비밀번호 초기화": "비밀번호 초기화",
     "비밀번호 변경": "비밀번호 변경",
-    "관리자 비밀번호": "관리자 비밀번호",
-    "2020": "2020",
-    "2021": "2021",
-    "2022": "2022",
-    "2023": "2023",
-    "2024": "2024",
-    "2025": "2025",
-    "전체 건수": "전체 건수"
+    "관리자 비밀번호": "관리자 비밀번호"
   },
   en: {
     "AS 현황 관리": "AS Status Management",
@@ -288,14 +282,7 @@ const translations = {
     "API 데이터 가져오기": "API Data Retrieval",
     "비밀번호 초기화": "Reset Password",
     "비밀번호 변경": "Change Password",
-    "관리자 비밀번호": "Administrator Password",
-    "2020": "2020",
-    "2021": "2021",
-    "2022": "2022",
-    "2023": "2023",
-    "2024": "2024",
-    "2025": "2025",
-    "전체 건수": "Total"
+    "관리자 비밀번호": "Administrator Password"
   },
   zh: {
     "AS 현황 관리": "AS状态管理",
@@ -383,14 +370,7 @@ const translations = {
     "API 데이터 가져오기": "获取API数据",
     "비밀번호 초기화": "重置密码",
     "비밀번호 변경": "更改密码",
-    "관리자 비밀번호": "管理员密码",
-    "2020": "2020",
-    "2021": "2021",
-    "2022": "2022",
-    "2023": "2023",
-    "2024": "2024",
-    "2025": "2025",
-    "전체 건수": "总计"
+    "관리자 비밀번호": "管理员密码"
   },
   ja: {
     "AS 현황 관리": "ASステータス管理",
@@ -478,14 +458,7 @@ const translations = {
     "API 데이터 가져오기": "APIデータ取得",
     "비밀번호 초기화": "パスワードリセット",
     "비밀번호 변경": "パスワード変更",
-    "관리자 비밀번호": "管理者パスワード",
-    "2020": "2020",
-    "2021": "2021",
-    "2022": "2022",
-    "2023": "2023",
-    "2024": "2024",
-    "2025": "2025",
-    "전체 건수": "合計件数"
+    "관리자 비밀번호": "管理者パスワード"
   }
 };
 
@@ -2094,13 +2067,13 @@ async function loadHistoryCounts() {
     });
     asData.forEach(row => {
       const c = countsMap[row.공번] || {2020:0,2021:0,2022:0,2023:0,2024:0,2025:0,total:0};
-      row.cnt2020 = c[2020] || 0;
-      row.cnt2021 = c[2021] || 0;
-      row.cnt2022 = c[2022] || 0;
-      row.cnt2023 = c[2023] || 0;
-      row.cnt2024 = c[2024] || 0;
-      row.cnt2025 = c[2025] || 0;
-      row.cntTotal = c.total || 0;
+      row.cnt2020 = c[2020];
+      row.cnt2021 = c[2021];
+      row.cnt2022 = c[2022];
+      row.cnt2023 = c[2023];
+      row.cnt2024 = c[2024];
+      row.cnt2025 = c[2025];
+      row.cntTotal = c.total;
     });
   } catch (err) {
     console.error('히스토리 연도별 카운트 로드 오류:', err);
@@ -2111,7 +2084,7 @@ async function loadHistoryCounts() {
 }
 
 function loadData() {
-  db.ref(asPath).once('value').then(async snap => {
+  db.ref(asPath).once('value').then(snap => {
     const val = snap.val() || {};
     
     asData = [];
@@ -2150,7 +2123,7 @@ function loadData() {
     });
     
     console.log(`데이터 로드 완료: 총 ${asData.length}개 (원본: ${Object.keys(val).length}개)`);
-
+    
     dataLoaded = true;
     updateSidebarList();
 
@@ -3839,7 +3812,7 @@ function readExcelFile(file, mode) {
           let apiData = {
             api_name: '',
             api_owner: '',
-            api_manager: '',
+            api_manager: ''
           };
           
           if (imoValue && existingApiData[imoValue]) {
@@ -4019,7 +3992,7 @@ function handleAsStatusUpload(e) {
 
 function readAsStatusFile(file) {
   const reader = new FileReader();
-
+  
   reader.onload = function(evt) {
     let loadingEl = document.createElement('div');
     loadingEl.style.position = 'fixed';
@@ -4034,7 +4007,7 @@ function readAsStatusFile(file) {
     loadingEl.textContent = 'AS 현황 데이터 처리 중...';
     document.body.appendChild(loadingEl);
     
-    setTimeout(async () => {
+    setTimeout(() => {
       try {
         const data = new Uint8Array(evt.target.result);
         const wb = XLSX.read(data, {type: 'array', cellDates: true, dateNF: "yyyy-mm-dd"});
@@ -4112,6 +4085,7 @@ function readAsStatusFile(file) {
 
         // 기존 히스토리 데이터 제거하여 누적 방지
         await db.ref(aiHistoryPath).remove();
+        console.log('기존 히스토리 데이터 삭제 완료');
 
         Object.assign(updates, batchAiRecords);
 
@@ -4141,26 +4115,20 @@ function readAsStatusFile(file) {
           }
         }
         
-        try {
-          await db.ref().update(updates);
-          addHistory(`AS 현황 업로드 - 총 ${updateCount}건 접수/조치정보 갱신`);
+        await db.ref().update(updates);
+        addHistory(`AS 현황 업로드 - 총 ${updateCount}건 접수/조치정보 갱신`);
 
-          await loadHistoryCounts();
-          if (filteredData.length > 0) {
-            updateTable();
-          }
-
-          document.body.removeChild(loadingEl);
-          alert(`AS 현황 업로드 완료 (총 ${updateCount}건 업데이트)`);
-        } catch (err) {
-          console.error("AS 현황 업로드 오류:", err);
-          document.body.removeChild(loadingEl);
-          alert("데이터 저장 중 오류가 발생했습니다.");
+        await loadHistoryCounts();
+        if (filteredData.length > 0) {
+          updateTable();
         }
-      } catch (err) {
-        console.error("AS 현황 파일 처리 오류:", err);
+
         document.body.removeChild(loadingEl);
-        alert("AS 현황 파일 처리 중 오류가 발생했습니다.");
+        alert(`AS 현황 업로드 완료 (총 ${updateCount}건 업데이트)`);
+      } catch (err) {
+        console.error("AS 현황 업로드 오류:", err);
+        document.body.removeChild(loadingEl);
+        alert("데이터 저장 중 오류가 발생했습니다.");
       }
     }, 100);
   };
