@@ -900,39 +900,41 @@ function applySorting() {
 function updateTable() {
   if (isTableRendering) return;
   isTableRendering = true;
-  
-  try {
-    // 헤더 렌더링
-    renderTableHeaders();
-    
-    // 바디 렌더링
-    const tbody = document.getElementById('asBody');
-    tbody.innerHTML = '';
-    
-    // 상태 집계
-    const counts = {정상: 0, 부분동작: 0, 동작불가: 0};
-    
-    // DocumentFragment 사용하여 성능 향상
-    const fragment = document.createDocumentFragment();
-    
-    filteredData.forEach(row => {
+
+  // 헤더 렌더링
+  renderTableHeaders();
+
+  // 바디 렌더링 준비
+  const tbody = document.getElementById('asBody');
+  tbody.innerHTML = '';
+
+  const counts = {정상: 0, 부분동작: 0, 동작불가: 0};
+  const fragment = document.createDocumentFragment();
+  const CHUNK_SIZE = 100;
+  let index = 0;
+
+  function renderChunk() {
+    const end = Math.min(index + CHUNK_SIZE, filteredData.length);
+    for (; index < end; index++) {
+      const row = filteredData[index];
       if (counts.hasOwnProperty(row.동작여부)) {
         counts[row.동작여부]++;
       }
-      const tr = createTableRow(row);
-      fragment.appendChild(tr);
-    });
-    
-    tbody.appendChild(fragment);
-    
-    // 상태 업데이트
-    updateStatusCounts(counts);
-    updateElapsedDayCounts();
-    updateSidebarList();
-    
-  } finally {
-    isTableRendering = false;
+      fragment.appendChild(createTableRow(row));
+    }
+
+    if (index < filteredData.length) {
+      requestAnimationFrame(renderChunk);
+    } else {
+      tbody.appendChild(fragment);
+      updateStatusCounts(counts);
+      updateElapsedDayCounts();
+      updateSidebarList();
+      isTableRendering = false;
+    }
   }
+
+  requestAnimationFrame(renderChunk);
 }
 
 // 전체 데이터 로드 및 표시
@@ -4132,15 +4134,18 @@ function readAsStatusFile(file) {
           }
         }
         
-        db.ref().update(updates)
+        db.ref(aiHistoryPath).remove()
+          .then(() => db.ref().update(updates))
           .then(() => {
             addHistory(`AS 현황 업로드 - 총 ${updateCount}건 접수/조치정보 갱신`);
-            
-            // 현재 필터 상태에 따라 테이블 업데이트
-            if (filteredData.length > 0) {
-              updateTable();
-            }
-            
+
+            // 히스토리 카운트 갱신 후 테이블 업데이트
+            loadHistoryCounts().then(() => {
+              if (filteredData.length > 0) {
+                updateTable();
+              }
+            });
+
             document.body.removeChild(loadingEl);
             alert(`AS 현황 업로드 완료 (총 ${updateCount}건 업데이트)`);
           })
