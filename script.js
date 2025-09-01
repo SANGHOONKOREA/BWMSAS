@@ -89,9 +89,9 @@ let g_apiConfig = {
 
 // 기본 테이블 열 정의
 const basicColumns = [
-  'checkbox', '공번', '공사', 'imo', 'hull', 'shipName', 'shipowner', 'repMail', 'shipType',
-  'group', 'shipyard', 'contract', 'asType', 'delivery', 'warranty',
-  'manager', '현황', '현황번역', '동작여부', 'history', 'cntTotal', 'AS접수일자', '기술적종료일',
+  'checkbox', '공번', '공사', 'imo', 'hull', 'shipName', 'shipowner', 'repMail', 'shipType', 
+  'group', 'shipyard', 'contract', 'asType', 'delivery', 'warranty', 
+  'manager', '현황', '현황번역', '동작여부', 'history', 'AS접수일자', '기술적종료일', 
   '경과일', '정상지연', '지연 사유', '수정일'
 ];
 
@@ -101,7 +101,7 @@ const allColumns = [
   'hull', 'shipName', 'shipowner', 'repMail', 'shipType', 'scale', '구분', 'major', 
   'group', 'shipyard', 'contract', 'asType', 'delivery', 'warranty', 'prevManager', 
   'manager', '현황', '현황번역', 'ai_summary', '동작여부', '조치계획', '접수내용', 
-  '조치결과', 'history', 'cnt2020', 'cnt2021', 'cnt2022', 'cnt2023', 'cnt2024', 'cnt2025', 'cntTotal', 'AS접수일자', '기술적종료일', '경과일', '정상지연', '지연 사유', '수정일'
+  '조치결과', 'history', 'AS접수일자', '기술적종료일', '경과일', '정상지연', '지연 사유', '수정일'
 ];
 
 // 언어별 텍스트 사전
@@ -192,14 +192,7 @@ const translations = {
     "API 데이터 가져오기": "API 데이터 가져오기",
     "비밀번호 초기화": "비밀번호 초기화",
     "비밀번호 변경": "비밀번호 변경",
-    "관리자 비밀번호": "관리자 비밀번호",
-    "2020": "2020",
-    "2021": "2021",
-    "2022": "2022",
-    "2023": "2023",
-    "2024": "2024",
-    "2025": "2025",
-    "전체 건수": "전체 건수"
+    "관리자 비밀번호": "관리자 비밀번호"
   },
   en: {
     "AS 현황 관리": "AS Status Management",
@@ -288,14 +281,7 @@ const translations = {
     "API 데이터 가져오기": "API Data Retrieval",
     "비밀번호 초기화": "Reset Password",
     "비밀번호 변경": "Change Password",
-    "관리자 비밀번호": "Administrator Password",
-    "2020": "2020",
-    "2021": "2021",
-    "2022": "2022",
-    "2023": "2023",
-    "2024": "2024",
-    "2025": "2025",
-    "전체 건수": "Total"
+    "관리자 비밀번호": "Administrator Password"
   },
   zh: {
     "AS 현황 관리": "AS状态管理",
@@ -383,14 +369,7 @@ const translations = {
     "API 데이터 가져오기": "获取API数据",
     "비밀번호 초기화": "重置密码",
     "비밀번호 변경": "更改密码",
-    "관리자 비밀번호": "管理员密码",
-    "2020": "2020",
-    "2021": "2021",
-    "2022": "2022",
-    "2023": "2023",
-    "2024": "2024",
-    "2025": "2025",
-    "전체 건수": "总计"
+    "관리자 비밀번호": "管理员密码"
   },
   ja: {
     "AS 현황 관리": "ASステータス管理",
@@ -478,14 +457,7 @@ const translations = {
     "API 데이터 가져오기": "APIデータ取得",
     "비밀번호 초기화": "パスワードリセット",
     "비밀번호 변경": "パスワード変更",
-    "관리자 비밀번호": "管理者パスワード",
-    "2020": "2020",
-    "2021": "2021",
-    "2022": "2022",
-    "2023": "2023",
-    "2024": "2024",
-    "2025": "2025",
-    "전체 건수": "合計件数"
+    "관리자 비밀번호": "管理者パスワード"
   }
 };
 
@@ -1090,13 +1062,6 @@ function renderTableHeaders() {
     '접수내용': { field: '접수내용', text: '접수내용' },
     '조치결과': { field: '조치결과', text: '조치결과' },
     'history': { field: null, text: '히스토리', isHistory: true },
-    'cnt2020': { field: 'cnt2020', text: '2020' },
-    'cnt2021': { field: 'cnt2021', text: '2021' },
-    'cnt2022': { field: 'cnt2022', text: '2022' },
-    'cnt2023': { field: 'cnt2023', text: '2023' },
-    'cnt2024': { field: 'cnt2024', text: '2024' },
-    'cnt2025': { field: 'cnt2025', text: '2025' },
-    'cntTotal': { field: 'cntTotal', text: '전체 건수' },
     'AS접수일자': { field: 'AS접수일자', text: 'AS접수일자' },
     '기술적종료일': { field: '기술적종료일', text: '기술적종료일' },
     '경과일': { field: '경과일', text: '경과일' },
@@ -2076,42 +2041,8 @@ function testConnection() {
     });
 }
 
-async function loadHistoryCounts() {
-  try {
-    const snapshot = await db.ref(aiHistoryPath).once('value');
-    const historyData = snapshot.val() || {};
-    const countsMap = {};
-    Object.values(historyData).forEach(rec => {
-      if (!rec.project || !rec.AS접수일자) return;
-      const year = new Date(rec.AS접수일자 + 'T00:00').getFullYear();
-      if (!countsMap[rec.project]) {
-        countsMap[rec.project] = {2020:0,2021:0,2022:0,2023:0,2024:0,2025:0,total:0};
-      }
-      if (year >= 2020 && year <= 2025) {
-        countsMap[rec.project][year] += 1;
-      }
-      countsMap[rec.project].total += 1;
-    });
-    asData.forEach(row => {
-      const c = countsMap[row.공번] || {2020:0,2021:0,2022:0,2023:0,2024:0,2025:0,total:0};
-      row.cnt2020 = c[2020] || 0;
-      row.cnt2021 = c[2021] || 0;
-      row.cnt2022 = c[2022] || 0;
-      row.cnt2023 = c[2023] || 0;
-      row.cnt2024 = c[2024] || 0;
-      row.cnt2025 = c[2025] || 0;
-      row.cntTotal = c.total || 0;
-    });
-  } catch (err) {
-    console.error('히스토리 연도별 카운트 로드 오류:', err);
-    asData.forEach(row => {
-      row.cnt2020 = row.cnt2021 = row.cnt2022 = row.cnt2023 = row.cnt2024 = row.cnt2025 = row.cntTotal = 0;
-    });
-  }
-}
-
 function loadData() {
-  db.ref(asPath).once('value').then(async snap => {
+  db.ref(asPath).once('value').then(snap => {
     const val = snap.val() || {};
     
     asData = [];
@@ -2150,7 +2081,6 @@ function loadData() {
     });
     
     console.log(`데이터 로드 완료: 총 ${asData.length}개 (원본: ${Object.keys(val).length}개)`);
-    await loadHistoryCounts();
     
     dataLoaded = true;
     updateSidebarList();
@@ -2314,8 +2244,7 @@ function addNewRow() {
     "수정일": now,
     "api_name": '',
     "api_owner": '',
-    "api_manager": '',
-    cnt2020: 0, cnt2021: 0, cnt2022: 0, cnt2023: 0, cnt2024: 0, cnt2025: 0, cntTotal: 0,
+    "api_manager": ''
   };
   
   asData.unshift(obj);
@@ -2572,7 +2501,7 @@ function createTableCell(row, columnKey) {
         'shipowner', 'major', 'group', 'shipyard', 'contract', 'asType',
         'delivery', 'warranty', 'prevManager', 'manager', '현황', '현황번역',
         '동작여부', '조치계획', '접수내용', '조치결과', 'AS접수일자', '기술적종료일',
-        '지연 사유', 'cnt2020', 'cnt2021', 'cnt2022', 'cnt2023', 'cnt2024', 'cnt2025', 'cntTotal'
+        '지연 사유'
       ];
       
       if (knownColumns.includes(columnKey)) {
@@ -2825,8 +2754,6 @@ function createDataCell(row, field) {
     inp.dataset.field = field;
     inp.addEventListener('change', onCellChange);
     td.appendChild(inp);
-  } else if (field.startsWith('cnt')) {
-    td.textContent = value || 0;
   } else {
     const inp = document.createElement('input');
     inp.type = 'text';
@@ -3833,7 +3760,7 @@ function readExcelFile(file, mode) {
           let apiData = {
             api_name: '',
             api_owner: '',
-            api_manager: '',
+            api_manager: ''
           };
           
           if (imoValue && existingApiData[imoValue]) {
