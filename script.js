@@ -66,6 +66,9 @@ const asPath = 'as-service/data';
 const userPath = 'as-service/users';
 const histPath = 'as-service/history';
 const aiHistoryPath = 'as-service/ai_history';
+function getProjectHistoryRef(project) {
+  return db.ref(`${aiHistoryPath}/${project}`);
+}
 const aiConfigPath = "as-service/admin/aiConfig";
 const apiConfigPath = "as-service/admin/apiConfig";
 const userMetaPath = 'as-service/user_meta';
@@ -3989,8 +3992,8 @@ function readAsStatusFile(file) {
             tEndFormatted = parseDateString(tEndRaw);
           }
           
-          const aiRecordKey = db.ref(aiHistoryPath).push().key;
-          batchAiRecords[`${aiHistoryPath}/${aiRecordKey}`] = {
+          const aiRecordKey = getProjectHistoryRef(project).push().key;
+          batchAiRecords[`${aiHistoryPath}/${project}/${aiRecordKey}`] = {
             project: project,
             AS접수일자: asDateFormatted,
             조치계획: (row['조치계획'] || '').trim(),
@@ -4192,7 +4195,7 @@ async function summarizeHistoryForProject(project) {
       return;
     }
     
-    const snapshot = await db.ref(aiHistoryPath).orderByChild("project").equalTo(project).once('value');
+    const snapshot = await getProjectHistoryRef(project).once('value');
     const historyData = snapshot.val() || {};
     
     const uniqueRecords = new Map();
@@ -4884,7 +4887,7 @@ async function showHistoryData(project) {
       return;
     }
     
-    const snapshot = await db.ref(aiHistoryPath).orderByChild("project").equalTo(project).once('value');
+    const snapshot = await getProjectHistoryRef(project).once('value');
     const historyData = snapshot.val() || {};
     
     const uniqueRecords = new Map();
@@ -5187,8 +5190,8 @@ async function summarizeAllHistoryRecords(records, project) {
           record.aiSummary = summary;
           
           if (record.id && record.id.startsWith('current_')) {
-            const newHistoryId = db.ref(aiHistoryPath).push().key;
-            await db.ref(`${aiHistoryPath}/${newHistoryId}`).set({
+            const newHistoryId = getProjectHistoryRef(project).push().key;
+            await db.ref(`${aiHistoryPath}/${project}/${newHistoryId}`).set({
               project: project,
               AS접수일자: record.asDate,
               조치계획: record.plan,
@@ -5198,10 +5201,10 @@ async function summarizeAllHistoryRecords(records, project) {
               aiSummary: summary,
               timestamp: new Date().toISOString()
             });
-            
+
             record.id = newHistoryId;
           } else {
-            await db.ref(`${aiHistoryPath}/${record.id}/aiSummary`).set(summary);
+            await db.ref(`${aiHistoryPath}/${project}/${record.id}/aiSummary`).set(summary);
           }
           
           updateHistoryTableRow(recordIndex, record);
@@ -5268,10 +5271,11 @@ async function summarizeHistoryRecord(record, recordIndex) {
     
     record.aiSummary = summary;
     
+    const project = record.project || '';
     if (record.id && record.id.startsWith('current_')) {
-      const newHistoryId = db.ref(aiHistoryPath).push().key;
-      await db.ref(`${aiHistoryPath}/${newHistoryId}`).set({
-        project: record.project || '',
+      const newHistoryId = getProjectHistoryRef(project).push().key;
+      await db.ref(`${aiHistoryPath}/${project}/${newHistoryId}`).set({
+        project: project,
         AS접수일자: record.asDate,
         조치계획: record.plan,
         접수내용: record.rec,
@@ -5280,10 +5284,10 @@ async function summarizeHistoryRecord(record, recordIndex) {
         aiSummary: summary,
         timestamp: new Date().toISOString()
       });
-      
+
       record.id = newHistoryId;
     } else if (record.id) {
-      await db.ref(`${aiHistoryPath}/${record.id}/aiSummary`).set(summary);
+      await db.ref(`${aiHistoryPath}/${project}/${record.id}/aiSummary`).set(summary);
     }
     
     updateHistoryTableRow(recordIndex, record);
