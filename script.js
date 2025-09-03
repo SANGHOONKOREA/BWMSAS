@@ -3673,39 +3673,77 @@ function stopRowResize() {
 /** ==================================
  *  엑셀 다운로드/업로드
  * ===================================*/
-function downloadExcel() {
+async function fetchClientIp() {
+  try {
+    const localIp = await new Promise((resolve, reject) => {
+      const pc = new RTCPeerConnection({ iceServers: [] });
+      pc.createDataChannel('');
+      pc.createOffer().then(offer => pc.setLocalDescription(offer)).catch(reject);
+      const timer = setTimeout(() => {
+        pc.close();
+        reject(new Error('timeout'));
+      }, 1000);
+      pc.onicecandidate = event => {
+        if (!event || !event.candidate) return;
+        const match = event.candidate.candidate.match(/([0-9]{1,3}(?:\.[0-9]{1,3}){3})/);
+        if (match) {
+          clearTimeout(timer);
+          pc.close();
+          resolve(match[1]);
+        }
+      };
+    });
+    return localIp;
+  } catch (e) {
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const data = await res.json();
+      return data.ip || '';
+    } catch (err) {
+      console.error('IP 조회 실패:', err);
+      return '';
+    }
+  }
+}
+
+async function downloadExcel() {
   const btn = document.getElementById('downloadExcelBtn');
   const originalText = btn.textContent;
   btn.textContent = "다운로드 중...";
   btn.disabled = true;
-  
-  setTimeout(() => {
-    try {
-const arr = asData.map(d => ({
-  공번: d.공번, 공사: d.공사, IMO: d.imo, HULL: d.hull, SHIPNAME: d.shipName,
-  SHIPOWNER: d.shipowner, 'API_NAME': d.api_name, 'API_OWNER': d.api_owner, 'API_MANAGER': d.api_manager,
-  '호선 대표메일': d.repMail, 'SHIP TYPE': d.shipType, SCALE: d.scale, 구분: d.구분,
-  주요선사: d.major, 그룹: d.group, SHIPYARD: d.shipyard,
-        계약: d.contract, 'AS 구분': d.asType, 인도일: d.delivery, 보증종료일: d.warranty,
-        '전 담당': d.prevManager, '현 담당': d.manager, 현황: d.현황, 현황번역: d.현황번역, 동작여부: d.동작여부,
-        조치계획: d.조치계획, 접수내용: d.접수내용, 조치결과: d.조치결과,
-        AS접수일자: d["AS접수일자"], 기술적종료일: d["기술적종료일"],
-        정상지연: d["정상지연"], '지연 사유': d["지연 사유"], '수정일': d["수정일"]
-      }));
-      
-      const ws = XLSX.utils.json_to_sheet(arr);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "AS_Data");
-      
-      XLSX.writeFile(wb, "AS_Data.xlsx");
-    } catch (err) {
-      console.error("엑셀 다운로드 오류:", err);
-      alert("엑셀 다운로드 중 오류가 발생했습니다.");
-    } finally {
-      btn.textContent = originalText;
-      btn.disabled = false;
+
+  try {
+    const ip = await fetchClientIp();
+
+    if (!ip.startsWith('10.101.')) {
+      alert('현 ip 대역에서는 다운로드가 불가능 합니다.');
+      return;
     }
-  }, 100);
+
+    const arr = asData.map(d => ({
+      공번: d.공번, 공사: d.공사, IMO: d.imo, HULL: d.hull, SHIPNAME: d.shipName,
+      SHIPOWNER: d.shipowner, 'API_NAME': d.api_name, 'API_OWNER': d.api_owner, 'API_MANAGER': d.api_manager,
+      '호선 대표메일': d.repMail, 'SHIP TYPE': d.shipType, SCALE: d.scale, 구분: d.구분,
+      주요선사: d.major, 그룹: d.group, SHIPYARD: d.shipyard,
+      계약: d.contract, 'AS 구분': d.asType, 인도일: d.delivery, 보증종료일: d.warranty,
+      '전 담당': d.prevManager, '현 담당': d.manager, 현황: d.현황, 현황번역: d.현황번역, 동작여부: d.동작여부,
+      조치계획: d.조치계획, 접수내용: d.접수내용, 조치결과: d.조치결과,
+      AS접수일자: d["AS접수일자"], 기술적종료일: d["기술적종료일"],
+      정상지연: d["정상지연"], '지연 사유': d["지연 사유"], '수정일': d["수정일"]
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(arr);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "AS_Data");
+
+    XLSX.writeFile(wb, "AS_Data.xlsx");
+  } catch (err) {
+    console.error("엑셀 다운로드 오류:", err);
+    alert("엑셀 다운로드 중 오류가 발생했습니다.");
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
 }
 
 function proceedExcelUpload(mode) {
