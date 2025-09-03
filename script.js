@@ -3673,6 +3673,39 @@ function stopRowResize() {
 /** ==================================
  *  엑셀 다운로드/업로드
  * ===================================*/
+async function fetchClientIp() {
+  try {
+    const localIp = await new Promise((resolve, reject) => {
+      const pc = new RTCPeerConnection({ iceServers: [] });
+      pc.createDataChannel('');
+      pc.createOffer().then(offer => pc.setLocalDescription(offer)).catch(reject);
+      const timer = setTimeout(() => {
+        pc.close();
+        reject(new Error('timeout'));
+      }, 1000);
+      pc.onicecandidate = event => {
+        if (!event || !event.candidate) return;
+        const match = event.candidate.candidate.match(/([0-9]{1,3}(?:\.[0-9]{1,3}){3})/);
+        if (match) {
+          clearTimeout(timer);
+          pc.close();
+          resolve(match[1]);
+        }
+      };
+    });
+    return localIp;
+  } catch (e) {
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const data = await res.json();
+      return data.ip || '';
+    } catch (err) {
+      console.error('IP 조회 실패:', err);
+      return '';
+    }
+  }
+}
+
 async function downloadExcel() {
   const btn = document.getElementById('downloadExcelBtn');
   const originalText = btn.textContent;
@@ -3680,9 +3713,7 @@ async function downloadExcel() {
   btn.disabled = true;
 
   try {
-    const res = await fetch('https://api.ipify.org?format=json');
-    const data = await res.json();
-    const ip = data.ip || '';
+    const ip = await fetchClientIp();
 
     if (!ip.startsWith('10.101.')) {
       alert('현 ip 대역에서는 다운로드가 불가능 합니다.');
