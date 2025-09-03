@@ -92,19 +92,19 @@ let g_apiConfig = {
 
 // 기본 테이블 열 정의
 const basicColumns = [
-  'checkbox', '공번', '공사', 'imo', 'hull', 'shipName', 'shipowner', 'repMail', 'shipType', 
-  'group', 'shipyard', 'contract', 'asType', 'delivery', 'warranty', 
-  'manager', '현황', '현황번역', '동작여부', 'history', 'AS접수일자', '기술적종료일', 
+  'checkbox', '공번', '공사', 'imo', 'hull', 'shipName', 'shipowner', 'repMail', 'shipType',
+  'group', 'shipyard', 'contract', 'asType', 'delivery', 'warranty',
+  'manager', '현황', '현황번역', '동작여부', 'historyCount', 'history', 'AS접수일자', '기술적종료일',
   '경과일', '정상지연', '지연 사유', '수정일'
 ];
 
 // 모든 테이블 열 정의
 const allColumns = [
   'checkbox', '공번', '공사', 'imo', 'api_name', 'api_owner', 'api_manager', 'api_apply',
-  'hull', 'shipName', 'shipowner', 'repMail', 'shipType', 'scale', '구분', 'major', 
-  'group', 'shipyard', 'contract', 'asType', 'delivery', 'warranty', 'prevManager', 
-  'manager', '현황', '현황번역', 'ai_summary', '동작여부', '조치계획', '접수내용', 
-  '조치결과', 'history', 'AS접수일자', '기술적종료일', '경과일', '정상지연', '지연 사유', '수정일'
+  'hull', 'shipName', 'shipowner', 'repMail', 'shipType', 'scale', '구분', 'major',
+  'group', 'shipyard', 'contract', 'asType', 'delivery', 'warranty', 'prevManager',
+  'manager', '현황', '현황번역', 'ai_summary', '동작여부', '조치계획', '접수내용',
+  '조치결과', 'historyCount', 'history', 'AS접수일자', '기술적종료일', '경과일', '정상지연', '지연 사유', '수정일'
 ];
 
 // 언어별 텍스트 사전
@@ -178,6 +178,7 @@ const translations = {
     "조치계획": "조치계획",
     "접수내용": "접수내용",
     "조치결과": "조치결과",
+    "AS접수건수": "AS접수건수",
     "AS접수일자": "AS접수일자",
     "기술적종료일": "기술적종료일",
     "경과일": "경과일",
@@ -267,6 +268,7 @@ const translations = {
     "조치계획": "Action Plan",
     "접수내용": "Receipt Details",
     "조치결과": "Action Results",
+    "AS접수건수": "AS Count",
     "AS접수일자": "AS Receipt Date",
     "기술적종료일": "Technical End Date",
     "경과일": "Elapsed Days",
@@ -355,6 +357,7 @@ const translations = {
     "조치계획": "措施计划",
     "접수내용": "接收内容",
     "조치결과": "措施结果",
+    "AS접수건수": "AS数量",
     "AS접수일자": "AS接收日期",
     "기술적종료일": "技术终止日期",
     "경과일": "经过天数",
@@ -443,6 +446,7 @@ const translations = {
     "조치계획": "措置計画",
     "접수내용": "受付内容",
     "조치결과": "措置結果",
+    "AS접수건수": "AS件数",
     "AS접수일자": "AS受付日",
     "기술적종료일": "技術的終了日",
     "경과일": "経過日数",
@@ -1064,6 +1068,7 @@ function renderTableHeaders() {
     '조치계획': { field: '조치계획', text: '조치계획' },
     '접수내용': { field: '접수내용', text: '접수내용' },
     '조치결과': { field: '조치결과', text: '조치결과' },
+    'historyCount': { field: null, text: 'AS접수건수', isHistoryCount: true },
     'history': { field: null, text: '히스토리', isHistory: true },
     'AS접수일자': { field: 'AS접수일자', text: 'AS접수일자' },
     '기술적종료일': { field: '기술적종료일', text: '기술적종료일' },
@@ -2044,50 +2049,76 @@ function testConnection() {
     });
 }
 
-function loadData() {
-  db.ref(asPath).once('value').then(snap => {
-    const val = snap.val() || {};
-    
-    asData = [];
-    Object.keys(val).forEach(key => {
-      const r = val[key];
-      
-      // 빈 객체이거나 유효하지 않은 데이터는 건너뛰기
-      if (!r || typeof r !== 'object') return;
-      
-      // 최소한 하나 이상의 필수 필드가 있는지 확인
-      const hasRequiredFields = r.공번 || r.imo || r.hull || r.shipName || r.manager || r.shipowner;
-      if (!hasRequiredFields) return;
-      
-      // uid가 없으면 key를 uid로 설정
-      if (!r.uid) r.uid = key;
-      
-      // 호환 처리
-      if (r["현 담당"] && !r.manager) r.manager = r["현 담당"];
-      if (r["SHIPOWNER"] && !r.shipowner) r.shipowner = r["SHIPOWNER"];
-      if (r.group && typeof r.group !== 'string') r.group = String(r.group);
-      if (!("AS접수일자" in r)) r["AS접수일자"] = "";
-      if (!("정상지연" in r)) r["정상지연"] = "";
-      if (!("지연 사유" in r)) r["지연 사유"] = "";
-      if (!("수정일" in r)) r["수정일"] = "";
-      if (!("api_name" in r)) r["api_name"] = "";
-      if (!("api_owner" in r)) r["api_owner"] = "";
-      if (!("api_manager" in r)) r["api_manager"] = "";
-      if (!("현황번역" in r)) r["현황번역"] = "";
-      
-      // 동작여부 값 변환
-      if (r.동작여부 === "정상A" || r.동작여부 === "정상B" || r.동작여부 === "유상정상") {
-        r.동작여부 = "정상";
-      }
-      
-      asData.push(r);
-    });
-    
-    console.log(`데이터 로드 완료: 총 ${asData.length}개 (원본: ${Object.keys(val).length}개)`);
-    
-    dataLoaded = true;
-    updateSidebarList();
+async function loadData() {
+  const snap = await db.ref(asPath).once('value');
+  const val = snap.val() || {};
+
+  asData = [];
+  Object.keys(val).forEach(key => {
+    const r = val[key];
+
+    // 빈 객체이거나 유효하지 않은 데이터는 건너뛰기
+    if (!r || typeof r !== 'object') return;
+
+    // 최소한 하나 이상의 필수 필드가 있는지 확인
+    const hasRequiredFields = r.공번 || r.imo || r.hull || r.shipName || r.manager || r.shipowner;
+    if (!hasRequiredFields) return;
+
+    // uid가 없으면 key를 uid로 설정
+    if (!r.uid) r.uid = key;
+
+    // 호환 처리
+    if (r["현 담당"] && !r.manager) r.manager = r["현 담당"];
+    if (r["SHIPOWNER"] && !r.shipowner) r.shipowner = r["SHIPOWNER"];
+    if (r.group && typeof r.group !== 'string') r.group = String(r.group);
+    if (!("AS접수일자" in r)) r["AS접수일자"] = "";
+    if (!("정상지연" in r)) r["정상지연"] = "";
+    if (!("지연 사유" in r)) r["지연 사유"] = "";
+    if (!("수정일" in r)) r["수정일"] = "";
+    if (!("api_name" in r)) r["api_name"] = "";
+    if (!("api_owner" in r)) r["api_owner"] = "";
+    if (!("api_manager" in r)) r["api_manager"] = "";
+    if (!("현황번역" in r)) r["현황번역"] = "";
+
+    // 동작여부 값 변환
+    if (r.동작여부 === "정상A" || r.동작여부 === "정상B" || r.동작여부 === "유상정상") {
+      r.동작여부 = "정상";
+    }
+
+    asData.push(r);
   });
+
+  console.log(`데이터 로드 완료: 총 ${asData.length}개 (원본: ${Object.keys(val).length}개)`);
+
+  await loadHistoryCounts();
+
+  dataLoaded = true;
+  updateSidebarList();
+  applyFilters();
+}
+
+// 히스토리 건수 로드
+async function loadHistoryCounts() {
+  const tasks = asData.map(row =>
+    getProjectHistoryRef(row.공번).once('value').then(snapshot => {
+      const data = snapshot.val() || {};
+      const perYear = {};
+      let total = 0;
+      Object.values(data).forEach(rec => {
+        if (!rec.AS접수일자) return;
+        const year = parseInt(rec.AS접수일자.substring(0, 4), 10);
+        if (year >= 2020) {
+          perYear[year] = (perYear[year] || 0) + 1;
+          total++;
+        }
+      });
+      row.historyCounts = { perYear, total };
+    }).catch(err => {
+      console.error('히스토리 건수 로드 오류:', err);
+      row.historyCounts = { perYear: {}, total: 0 };
+    })
+  );
+  await Promise.all(tasks);
 }
 
 // onCellChange 함수
@@ -2488,6 +2519,8 @@ function createTableCell(row, columnKey) {
       aiBtn.addEventListener('click', () => summarizeAndUpdateRow(row.uid));
       aiTd.appendChild(aiBtn);
       return aiTd;
+    case 'historyCount':
+      return createHistoryCountCell(row);
     case 'history':
       return createHistoryCell(row);
     case '경과일':
@@ -2567,6 +2600,22 @@ function createHistoryCell(row) {
   btn.style.cursor = "pointer";
   btn.addEventListener('click', () => showHistoryDataWithFullscreen(row.공번));
   td.appendChild(btn);
+  return td;
+}
+
+// 히스토리 건수 셀 생성
+function createHistoryCountCell(row) {
+  const td = document.createElement('td');
+  td.dataset.field = 'historyCount';
+  const counts = row.historyCounts || { perYear: {}, total: 0 };
+  if (isExtendedView) {
+    const years = Object.keys(counts.perYear).sort();
+    const parts = years.map(y => `${y}:${counts.perYear[y]}`);
+    parts.push(`총:${counts.total}`);
+    td.textContent = parts.join(' / ');
+  } else {
+    td.textContent = counts.total || 0;
+  }
   return td;
 }
 
