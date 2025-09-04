@@ -90,6 +90,12 @@ let g_apiConfig = {
   baseUrl: "https://api.vesselfinder.com/masterdata"
 };
 
+// 연도별 AS 접수 건수 열 생성
+const historyStartYear = 2020;
+const currentYear = new Date().getFullYear();
+const historyYears = Array.from({ length: currentYear - historyStartYear + 1 }, (_, i) => historyStartYear + i);
+const historyYearColumns = historyYears.map(y => `historyCount${y}`);
+
 // 기본 테이블 열 정의
 const basicColumns = [
   'checkbox', '공번', '공사', 'imo', 'hull', 'shipName', 'shipowner', 'repMail', 'shipType',
@@ -104,7 +110,7 @@ const allColumns = [
   'hull', 'shipName', 'shipowner', 'repMail', 'shipType', 'scale', '구분', 'major',
   'group', 'shipyard', 'contract', 'asType', 'delivery', 'warranty', 'prevManager',
   'manager', '현황', '현황번역', 'ai_summary', '동작여부', '조치계획', '접수내용',
-  '조치결과', 'historyCount', 'history', 'AS접수일자', '기술적종료일', '경과일', '정상지연', '지연 사유', '수정일'
+  '조치결과', 'historyCount', ...historyYearColumns, 'history', 'AS접수일자', '기술적종료일', '경과일', '정상지연', '지연 사유', '수정일'
 ];
 
 // 언어별 텍스트 사전
@@ -1035,7 +1041,7 @@ function renderTableHeaders() {
   if (!thead) return;
   
   const columnsToShow = isExtendedView ? allColumns : basicColumns;
-  
+
   const headerDefinitions = {
     'checkbox': { field: null, text: '', isCheckbox: true },
     '공번': { field: '공번', text: '공번' },
@@ -1077,15 +1083,18 @@ function renderTableHeaders() {
     '지연 사유': { field: '지연 사유', text: '지연 사유' },
     '수정일': { field: '수정일', text: '수정일' }
   };
-  
+
+  historyYears.forEach(year => {
+    headerDefinitions[`historyCount${year}`] = { field: null, text: String(year) };
+  });
+
   thead.innerHTML = '';
-  
+
   columnsToShow.forEach(columnKey => {
     const headerDef = headerDefinitions[columnKey];
     if (!headerDef) return;
-    
+
     const th = document.createElement('th');
-    
     if (headerDef.isCheckbox) {
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
@@ -1094,29 +1103,28 @@ function renderTableHeaders() {
       th.appendChild(checkbox);
     } else {
       const translatedText = translations[currentLanguage][headerDef.text] || headerDef.text;
-      
+      th.setAttribute('data-field', headerDef.field || columnKey);
+
       if (headerDef.field) {
-        th.setAttribute('data-field', headerDef.field);
         th.style.cursor = 'pointer';
-        
         const textNode = document.createTextNode(translatedText);
         th.appendChild(textNode);
-        
+
         if (sortField === headerDef.field) {
           const sortIndicator = document.createElement('span');
           sortIndicator.className = 'sort-indicator';
-          sortIndicator.innerHTML = sortAsc ? ' &#9650;' : ' &#9660;';
+          sortIndicator.innerHTML = sortAsc ? ' \u25b2' : ' \u25bc';
           th.appendChild(sortIndicator);
         }
       } else {
         th.textContent = translatedText;
       }
-      
+
       const resizer = document.createElement('div');
       resizer.className = 'col-resizer';
       th.appendChild(resizer);
     }
-    
+
     thead.appendChild(th);
   });
 }
@@ -2530,6 +2538,12 @@ function createTableCell(row, columnKey) {
     case '수정일':
       return createModifiedDateCell(row);
     default:
+      if (columnKey.startsWith('historyCount')) {
+        const year = parseInt(columnKey.replace('historyCount', ''), 10);
+        if (!isNaN(year)) {
+          return createHistoryYearCell(row, year);
+        }
+      }
       // 알려진 컬럼인지 확인
       const knownColumns = [
         '공번', '공사', 'imo', 'api_name', 'api_owner', 'api_manager',
@@ -2608,14 +2622,16 @@ function createHistoryCountCell(row) {
   const td = document.createElement('td');
   td.dataset.field = 'historyCount';
   const counts = row.historyCounts || { perYear: {}, total: 0 };
-  if (isExtendedView) {
-    const years = Object.keys(counts.perYear).sort();
-    const parts = years.map(y => `${y}:${counts.perYear[y]}`);
-    parts.push(`총:${counts.total}`);
-    td.textContent = parts.join(' / ');
-  } else {
-    td.textContent = counts.total || 0;
-  }
+  td.textContent = counts.total || 0;
+  return td;
+}
+
+// 연도별 히스토리 건수 셀 생성
+function createHistoryYearCell(row, year) {
+  const td = document.createElement('td');
+  td.dataset.field = `historyCount${year}`;
+  const counts = row.historyCounts || { perYear: {}, total: 0 };
+  td.textContent = counts.perYear[year] || 0;
   return td;
 }
 
@@ -3727,21 +3743,32 @@ function downloadExcel() {
   const originalText = btn.textContent;
   btn.textContent = "다운로드 중...";
   btn.disabled = true;
-  
+
   setTimeout(() => {
     try {
-const arr = asData.map(d => ({
-  공번: d.공번, 공사: d.공사, IMO: d.imo, HULL: d.hull, SHIPNAME: d.shipName,
-  SHIPOWNER: d.shipowner, 'API_NAME': d.api_name, 'API_OWNER': d.api_owner, 'API_MANAGER': d.api_manager,
-  '호선 대표메일': d.repMail, 'SHIP TYPE': d.shipType, SCALE: d.scale, 구분: d.구분,
-  주요선사: d.major, 그룹: d.group, SHIPYARD: d.shipyard,
-        계약: d.contract, 'AS 구분': d.asType, 인도일: d.delivery, 보증종료일: d.warranty,
-        '전 담당': d.prevManager, '현 담당': d.manager, 현황: d.현황, 현황번역: d.현황번역, 동작여부: d.동작여부,
-        조치계획: d.조치계획, 접수내용: d.접수내용, 조치결과: d.조치결과,
-        AS접수일자: d["AS접수일자"], 기술적종료일: d["기술적종료일"],
-        정상지연: d["정상지연"], '지연 사유': d["지연 사유"], '수정일': d["수정일"]
-      }));
-      
+      const arr = asData.map(d => {
+        const counts = d.historyCounts || { perYear: {}, total: 0 };
+        const row = {
+          공번: d.공번, 공사: d.공사, IMO: d.imo, HULL: d.hull, SHIPNAME: d.shipName,
+          SHIPOWNER: d.shipowner, 'API_NAME': d.api_name, 'API_OWNER': d.api_owner, 'API_MANAGER': d.api_manager,
+          '호선 대표메일': d.repMail, 'SHIP TYPE': d.shipType, SCALE: d.scale, 구분: d.구분,
+          주요선사: d.major, 그룹: d.group, SHIPYARD: d.shipyard,
+          계약: d.contract, 'AS 구분': d.asType, 인도일: d.delivery, 보증종료일: d.warranty,
+          '전 담당': d.prevManager, '현 담당': d.manager, 현황: d.현황, 현황번역: d.현황번역, 동작여부: d.동작여부,
+          조치계획: d.조치계획, 접수내용: d.접수내용, 조치결과: d.조치결과,
+          'AS접수건수': counts.total
+        };
+        historyYears.forEach(y => {
+          row[String(y)] = counts.perYear[y] || 0;
+        });
+        row['AS접수일자'] = d['AS접수일자'];
+        row['기술적종료일'] = d['기술적종료일'];
+        row['정상지연'] = d['정상지연'];
+        row['지연 사유'] = d['지연 사유'];
+        row['수정일'] = d['수정일'];
+        return row;
+      });
+
       const ws = XLSX.utils.json_to_sheet(arr);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "AS_Data");
