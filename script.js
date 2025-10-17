@@ -4034,25 +4034,26 @@ function readAsStatusFile(file) {
     loadingEl.textContent = 'AS 현황 데이터 처리 중...';
     document.body.appendChild(loadingEl);
     
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         const data = new Uint8Array(evt.target.result);
         const wb = XLSX.read(data, {type: 'array', cellDates: true, dateNF: "yyyy-mm-dd"});
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet, {defval: ""});
-        
+
         const map = {};
         const projectCount = {};
+        const projectYearCounts = {};
         const batchAiRecords = {};
         const now = new Date().toISOString().split('T')[0];
-        
+
         json.forEach(row => {
           const asStatus = (row['AS진행상태'] || '').trim();
           if (asStatus === '접수취소') return;
           
           const project = (row['수익프로젝트'] || '').trim();
           if (!project) return;
-          
+
           const asDateRaw = row['AS접수일자'] || '';
           let asDateFormatted = '';
           if (asDateRaw) {
@@ -4061,7 +4062,17 @@ function readAsStatusFile(file) {
               asDateFormatted = dateToYMD(asDateObj.getTime());
             }
           }
-          
+
+          if (asDateFormatted) {
+            const year = parseInt(asDateFormatted.substring(0, 4), 10);
+            if (!isNaN(year)) {
+              if (!projectYearCounts[project]) {
+                projectYearCounts[project] = {};
+              }
+              projectYearCounts[project][year] = (projectYearCounts[project][year] || 0) + 1;
+            }
+          }
+
           const tEndRaw = row['기술적종료일자'] || '';
           let tEndFormatted = '';
           if (tEndRaw) {
@@ -4116,7 +4127,7 @@ function readAsStatusFile(file) {
         for (let project in map) {
           const item = map[project];
           const row = asData.find(x => x.공번 === project);
-          
+
           if (row) {
             row.조치계획 = item.plan;
             row.접수내용 = item.rec;
@@ -4133,36 +4144,39 @@ function readAsStatusFile(file) {
             updates[`${asPath}/${row.uid}/AS접수일자`] = row["AS접수일자"];
             updates[`${asPath}/${row.uid}/수정일`] = row["수정일"];
             updates[`${asPath}/${row.uid}/현황번역`] = "";
-            
+
+            row.historyCounts = {
+              perYear: projectYearCounts[project] || {},
+              total: projectCount[project] || 0
+            };
+
             updateCount++;
           }
         }
-        
-        db.ref().update(updates)
-          .then(() => {
-            addHistory(`AS 현황 업로드 - 총 ${updateCount}건 접수/조치정보 갱신`);
-            
-            // 현재 필터 상태에 따라 테이블 업데이트
-            if (filteredData.length > 0) {
-              updateTable();
-            }
-            
-            document.body.removeChild(loadingEl);
-            alert(`AS 현황 업로드 완료 (총 ${updateCount}건 업데이트)`);
-          })
-          .catch(err => {
-            console.error("AS 현황 업로드 오류:", err);
-            document.body.removeChild(loadingEl);
-            alert("데이터 저장 중 오류가 발생했습니다.");
-          });
+
+        await db.ref(aiHistoryPath).remove();
+        if (Object.keys(updates).length > 0) {
+          await db.ref().update(updates);
+        }
+        await loadHistoryCounts();
+        applyFilters();
+
+        addHistory(`AS 현황 업로드 - 총 ${updateCount}건 접수/조치정보 갱신`);
+
+        if (loadingEl && loadingEl.parentNode) {
+          document.body.removeChild(loadingEl);
+        }
+        alert(`AS 현황 업로드 완료 (총 ${updateCount}건 업데이트)`);
       } catch (err) {
         console.error("AS 현황 파일 처리 오류:", err);
-        document.body.removeChild(loadingEl);
+        if (loadingEl && loadingEl.parentNode) {
+          document.body.removeChild(loadingEl);
+        }
         alert("AS 현황 파일 처리 중 오류가 발생했습니다.");
       }
     }, 100);
   };
-  
+
   reader.readAsArrayBuffer(file);
 }
 
