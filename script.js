@@ -76,6 +76,63 @@ const adminPasswordPath = 'as-service/admin/password';
 const mainUsersPath = 'users';
 const scheduleCheckPath = 'as-service/schedule_checks';
 
+// Firebase 대량 업데이트 한계를 피하기 위한 설정
+const FIREBASE_UPDATE_SIZE_LIMIT = 700000; // 약 0.7MB 단위로 쪼개서 업로드
+
+async function applyChunkedFirebaseUpdates(entries, baseRef, sizeLimit = FIREBASE_UPDATE_SIZE_LIMIT) {
+  let chunk = {};
+  let chunkSize = 0;
+
+  for (const [path, value] of entries) {
+    const serialized = JSON.stringify(value);
+    const entrySize = path.length + serialized.length;
+
+    if (entrySize > sizeLimit) {
+      if (Object.keys(chunk).length > 0) {
+        await baseRef.update(chunk);
+        chunk = {};
+        chunkSize = 0;
+      }
+      await baseRef.child(path).set(value);
+      continue;
+    }
+
+    if (chunkSize + entrySize > sizeLimit && Object.keys(chunk).length > 0) {
+      await baseRef.update(chunk);
+      chunk = {};
+      chunkSize = 0;
+    }
+
+    chunk[path] = value;
+    chunkSize += entrySize;
+  }
+
+  if (Object.keys(chunk).length > 0) {
+    await baseRef.update(chunk);
+  }
+}
+
+async function clearAiHistoryInChunks(batchSize = 20) {
+  const historyRef = db.ref(aiHistoryPath);
+
+  while (true) {
+    const snapshot = await historyRef.limitToFirst(batchSize).once('value');
+    const data = snapshot.val();
+
+    if (!data) {
+      break;
+    }
+
+    const deleteEntries = Object.keys(data).map(projectKey => [projectKey, null]);
+
+    if (deleteEntries.length === 0) {
+      break;
+    }
+
+    await applyChunkedFirebaseUpdates(deleteEntries, historyRef);
+  }
+}
+
 // AI/API 설정 글로벌 변수
 let g_aiConfig = {
   apiKey: "",
@@ -4080,7 +4137,7 @@ function readAsStatusFile(file) {
           }
           
           const aiRecordKey = getProjectHistoryRef(project).push().key;
-          batchAiRecords[`${aiHistoryPath}/${project}/${aiRecordKey}`] = {
+          batchAiRecords[`${project}/${aiRecordKey}`] = {
             project: project,
             AS접수일자: asDateFormatted,
             조치계획: (row['조치계획'] || '').trim(),
@@ -4152,26 +4209,16 @@ function readAsStatusFile(file) {
           }
         }
 
-        await db.ref(aiHistoryPath).remove();
+        await clearAiHistoryInChunks();
 
         const aiRecordEntries = Object.entries(batchAiRecords);
         if (aiRecordEntries.length > 0) {
-          const chunkSize = 200;
-          for (let i = 0; i < aiRecordEntries.length; i += chunkSize) {
-            const chunkUpdate = {};
-            aiRecordEntries
-              .slice(i, i + chunkSize)
-              .forEach(([path, value]) => {
-                chunkUpdate[path] = value;
-              });
-            if (Object.keys(chunkUpdate).length > 0) {
-              await db.ref().update(chunkUpdate);
-            }
-          }
+          await applyChunkedFirebaseUpdates(aiRecordEntries, db.ref(aiHistoryPath));
         }
 
-        if (Object.keys(updates).length > 0) {
-          await db.ref().update(updates);
+        const updateEntries = Object.entries(updates);
+        if (updateEntries.length > 0) {
+          await applyChunkedFirebaseUpdates(updateEntries, db.ref());
         }
         await loadHistoryCounts();
         applyFilters();
