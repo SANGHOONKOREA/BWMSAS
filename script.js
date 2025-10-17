@@ -4121,8 +4121,6 @@ function readAsStatusFile(file) {
         
         const updates = {};
         
-        Object.assign(updates, batchAiRecords);
-        
         let updateCount = 0;
         for (let project in map) {
           const item = map[project];
@@ -4155,6 +4153,23 @@ function readAsStatusFile(file) {
         }
 
         await db.ref(aiHistoryPath).remove();
+
+        const aiRecordEntries = Object.entries(batchAiRecords);
+        if (aiRecordEntries.length > 0) {
+          const chunkSize = 200;
+          for (let i = 0; i < aiRecordEntries.length; i += chunkSize) {
+            const chunkUpdate = {};
+            aiRecordEntries
+              .slice(i, i + chunkSize)
+              .forEach(([path, value]) => {
+                chunkUpdate[path] = value;
+              });
+            if (Object.keys(chunkUpdate).length > 0) {
+              await db.ref().update(chunkUpdate);
+            }
+          }
+        }
+
         if (Object.keys(updates).length > 0) {
           await db.ref().update(updates);
         }
