@@ -4076,7 +4076,7 @@ function handleAsStatusUpload(e) {
 
 function readAsStatusFile(file) {
   const reader = new FileReader();
-  
+
   reader.onload = function(evt) {
     let loadingEl = document.createElement('div');
     loadingEl.style.position = 'fixed';
@@ -4090,13 +4090,21 @@ function readAsStatusFile(file) {
     loadingEl.style.zIndex = '9999';
     loadingEl.textContent = 'AS 현황 데이터 처리 중...';
     document.body.appendChild(loadingEl);
-    
+
+    const updateLoadingMessage = (msg) => {
+      if (loadingEl) {
+        loadingEl.textContent = msg;
+      }
+    };
+
     setTimeout(async () => {
       try {
         const data = new Uint8Array(evt.target.result);
         const wb = XLSX.read(data, {type: 'array', cellDates: true, dateNF: "yyyy-mm-dd"});
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet, {defval: ""});
+
+        updateLoadingMessage('AS 현황 데이터 정리 중...');
 
         const map = {};
         const projectCount = {};
@@ -4107,7 +4115,7 @@ function readAsStatusFile(file) {
         json.forEach(row => {
           const asStatus = (row['AS진행상태'] || '').trim();
           if (asStatus === '접수취소') return;
-          
+
           const project = (row['수익프로젝트'] || '').trim();
           if (!project) return;
 
@@ -4135,7 +4143,7 @@ function readAsStatusFile(file) {
           if (tEndRaw) {
             tEndFormatted = parseDateString(tEndRaw);
           }
-          
+
           const aiRecordKey = getProjectHistoryRef(project).push().key;
           batchAiRecords[`${project}/${aiRecordKey}`] = {
             project: project,
@@ -4146,38 +4154,38 @@ function readAsStatusFile(file) {
             기술적종료일: tEndFormatted,
             timestamp: new Date().toISOString()
           };
-          
+
           if (!projectCount[project]) {
             projectCount[project] = 1;
           } else {
             projectCount[project]++;
           }
-          
+
           const asDateMS = asDateRaw ? new Date(asDateRaw.replace(/[./]/g, '-') + "T00:00").getTime() : 0;
-          
+
           if (isNaN(asDateMS)) return;
-          
+
           const plan = row['조치계획'] || '';
           const rec = row['접수내용'] || '';
           const res = row['조치결과'] || '';
           const tEnd = tEndRaw || '';
-          
+
           if (!map[project]) {
             map[project] = {asDate: asDateMS, plan, rec, res, tEnd};
           } else if (asDateMS > map[project].asDate) {
             map[project] = {asDate: asDateMS, plan, rec, res, tEnd};
           }
         });
-        
+
         for (const recordPath in batchAiRecords) {
           const project = batchAiRecords[recordPath].project;
           if (projectCount[project]) {
             batchAiRecords[recordPath].접수건수 = projectCount[project];
           }
         }
-        
+
         const updates = {};
-        
+
         let updateCount = 0;
         for (let project in map) {
           const item = map[project];
@@ -4191,7 +4199,7 @@ function readAsStatusFile(file) {
             row["AS접수일자"] = dateToYMD(item.asDate);
             row["수정일"] = now;
             row["현황번역"] = "";
-            
+
             updates[`${asPath}/${row.uid}/조치계획`] = row.조치계획;
             updates[`${asPath}/${row.uid}/접수내용`] = row.접수내용;
             updates[`${asPath}/${row.uid}/조치결과`] = row.조치결과;
@@ -4209,32 +4217,39 @@ function readAsStatusFile(file) {
           }
         }
 
+        asData.forEach(row => {
+          if (!map[row.공번]) {
+            row.historyCounts = { perYear: {}, total: 0 };
+          }
+        });
+
+        updateLoadingMessage('기존 AS 히스토리 정리 중...');
         await clearAiHistoryInChunks();
 
         const aiRecordEntries = Object.entries(batchAiRecords);
         if (aiRecordEntries.length > 0) {
+          updateLoadingMessage('AS 히스토리 저장 중...');
           await applyChunkedFirebaseUpdates(aiRecordEntries, db.ref(aiHistoryPath));
         }
 
         const updateEntries = Object.entries(updates);
         if (updateEntries.length > 0) {
+          updateLoadingMessage('AS 본문 데이터 반영 중...');
           await applyChunkedFirebaseUpdates(updateEntries, db.ref());
         }
-        await loadHistoryCounts();
+
         applyFilters();
 
         addHistory(`AS 현황 업로드 - 총 ${updateCount}건 접수/조치정보 갱신`);
 
-        if (loadingEl && loadingEl.parentNode) {
-          document.body.removeChild(loadingEl);
-        }
         alert(`AS 현황 업로드 완료 (총 ${updateCount}건 업데이트)`);
       } catch (err) {
         console.error("AS 현황 파일 처리 오류:", err);
+        alert("AS 현황 파일 처리 중 오류가 발생했습니다.");
+      } finally {
         if (loadingEl && loadingEl.parentNode) {
           document.body.removeChild(loadingEl);
         }
-        alert("AS 현황 파일 처리 중 오류가 발생했습니다.");
       }
     }, 100);
   };
