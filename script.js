@@ -2903,7 +2903,7 @@ function openPdfDrawing(imoNo) {
   }
   
   // 서버 경로 설정
-  const serverPath = '\\\\10.101.10.20\\32.고객관리\\CS_박용\\9.개인폴더\\이제창\\FINAL DRAWING';
+  const serverPath = '\\\\10.101.10.20\32.고객관리\■ BWMS AS CENTER\◎ FINAL DRAWING';
   const fileName = `${imoNo}.pdf`;
   const fullPath = `${serverPath}\\${fileName}`;
   
